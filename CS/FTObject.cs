@@ -81,7 +81,7 @@ public class FTObject
         List<TileWithPositionOnGrid> box = GridSystem.BoxSafe(position, width, height);
         foreach (var tile in box)
         {
-            if (!tile.IsEmpty())
+            if (tile == null || !tile.IsEmpty())
             {
                 return false;
             }

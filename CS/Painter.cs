@@ -14,7 +14,7 @@ public partial class Painter : TileMap
     private CharacterBody2D player = null;
     public Node BehaviorNodes = null;
     public Node EnemyNodes = null;
-    private Thread ChunkLoaderThread = null;
+    private GodotThread ChunkLoaderThread = null;
     public DataLoader DataLoader = null;
     private Vector2I playerPositionForThread = Vector2I.Zero;
     private TileMap tileMap;
@@ -97,21 +97,24 @@ public partial class Painter : TileMap
 
     public override void _PhysicsProcess(double delta)
     {
-        base._PhysicsProcess(delta);
+        base._Process(delta);
         if (player == null)
         {
             return;
         }
+
         if (player.IsQueuedForDeletion()) {
             player = null;
+            return;
         }
 
         playerPositionForThread = LocalToMap(player.GlobalPosition);
 
         if (ChunkLoaderThread == null)
         {
-            ChunkLoaderThread = new Thread(LoadChunks);
-            ChunkLoaderThread.Start();
+            GD.Print("Chunk loader thread is null");
+            ChunkLoaderThread = new GodotThread();
+            ChunkLoaderThread.Start(Callable.From(LoadChunks));
         }
     }
 

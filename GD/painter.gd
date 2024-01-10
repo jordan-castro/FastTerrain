@@ -198,7 +198,7 @@ func _set_cell(position_: Vector2i, tilename: String)->void:
 	data_loader.terrain.grid_system.set_cell(position_.x, position_.y, tile)
 	set_cell(
 		0,
-		position,
+		position_,
 		0,
 		tile.atlas,
 		tile.alt,
