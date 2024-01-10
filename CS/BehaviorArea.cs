@@ -4,19 +4,19 @@ using System;
 public partial class BehaviorArea : Area2D
 {
     // Field for behavior name
-    private string behaviorName = "default";
+    private string behavior_name = "default";
 
     // Constructor
     public BehaviorArea(string name = "default")
     {
-        behaviorName = name;
+        behavior_name = name;
     }
 
     // Property for behaviorName
     public string BehaviorName
     {
-        get { return behaviorName; }
-        set { behaviorName = value; }
+        get { return behavior_name; }
+        set { behavior_name = value; }
     }
 
     // Ready method

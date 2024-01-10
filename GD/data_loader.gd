@@ -118,3 +118,11 @@ func init(path_to_json: String, world_seed:int)->void:
 		behaviors.append(
 			Behavior.from_json(behavior)
 		)
+
+
+## Get a tile by name
+func get_tile_by_name(name: String) -> Tile:
+	for tile in tiles:
+		if tile.name == name:
+			return tile
+	return null

@@ -12,6 +12,7 @@ class_name Painter extends TileMap
 @export var player : Player = null
 
 @onready var behaviors_node : Node = get_parent().get_node("Behaviors")
+@onready var enemies_node : Node = get_parent().get_node("Enemies")
 
 ## The chunk loader thread
 var chunk_loader_thread : Thread = Thread.new()
@@ -90,7 +91,7 @@ func _ready():
 	player.global_position = map_to_local(tile_to_spawn_on)
 
 
-func load_tile_set(chunk: Chunk = null, load_empty: bool = false)->void:
+func load_tile_set(chunk: Chunk = null)->void:
 	# Add tiles
 	var x_range_start = 0 if chunk == null else chunk.position_on_grid.x
 	var x_range_end = data_loader.terrain.size.x if chunk == null else chunk.position_on_grid.x + chunk.width
@@ -103,7 +104,7 @@ func load_tile_set(chunk: Chunk = null, load_empty: bool = false)->void:
 			# Load tile
 			var tile : Tile = data_loader.terrain.grid_system.get_cell_safe(x, y)
 			# Skip if empty
-			if tile == null or (not load_empty and tile.is_empty()):
+			if tile == null or tile.is_empty():
 				continue
 			# Add tile
 			set_cell(
@@ -115,7 +116,7 @@ func load_tile_set(chunk: Chunk = null, load_empty: bool = false)->void:
 			)
 
 	for spawner in chunk.spawners:
-		add_child(spawner.node)
+		enemies_node.add_child(spawner.node)
 		spawner.node.set_position(map_to_local(spawner.grid_position))
 
 
@@ -187,3 +188,18 @@ func load_chunk(chunk: Chunk)->void:
 
 func unload_chunk(chunk: Chunk)->void:
 	chunk.unload()
+
+
+func _set_cell(position_: Vector2i, tilename: String)->void:
+	var tile : Tile = data_loader.get_tile_by_name(tilename)
+	if tile == null:
+		return
+
+	data_loader.terrain.grid_system.set_cell(position_.x, position_.y, tile)
+	set_cell(
+		0,
+		position,
+		0,
+		tile.atlas,
+		tile.alt,
+	)

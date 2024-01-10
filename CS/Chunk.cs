@@ -70,7 +70,7 @@ public class Chunk {
             {
                 Shape = new RectangleShape2D()
             };
-            collisionShape2D.Shape.Set("extents", new Vector2(20, 25));
+            collisionShape2D.Shape.Set("extents", new Vector2(8, 10));
 
             // Create the area
             area = new BehaviorArea(behavior.BehaviorValue);

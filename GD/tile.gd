@@ -23,10 +23,12 @@ static func from_json(json: Dictionary) -> Tile:
 		json.get("alt", 0)
 	)
 
+
 func _eq(other: Object) -> bool:
 	if other is Tile:
 		return name == other.name
 	return false
+
 
 func _hash() -> int:
 	return name.hash()
@@ -34,7 +36,6 @@ func _hash() -> int:
 
 func is_empty() -> bool:
 	return name == "Empty"
-
 
 
 ## Creates a new empty tile.

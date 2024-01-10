@@ -4,7 +4,6 @@ var grid_system : GridSystem = null
 var args : Dictionary = {}
 var random : RandomNumberGenerator = null
 var chunk : Chunk = null
-var direction : int = -1
 
 
 func build(
@@ -18,7 +17,12 @@ func build(
 	random = random_
 	chunk = chunk_
 
-	direction = args.get("direction", -1)
+	_build()
+
+
+## This function should be overriden by the child class.
+func _build()->void:
+	pass
 
 
 ## Get the tiles of the object can spawn on within it's chunk
@@ -47,32 +51,16 @@ func can_build_here(pos: Vector2i, width: int, height: int)-> bool:
 ## Check that the tile is valid. Checks it is not out of bounds, and that it is empty.
 func check_tile(tile: TileWithPosition)->bool:
 		# Check if the tile above is part of the chunk
-	if tile.grid_position.y + direction < chunk.position_on_grid.y:
+	if tile.grid_position.y < chunk.position_on_grid.y:
 		return false
 
-	if not grid_system.get_cell_safe(tile.grid_position.x, tile.grid_position.y + direction):
+	if not grid_system.get_cell_safe(tile.grid_position.x, tile.grid_position.y):
 		return false
-	if not grid_system.get_cell_safe(tile.grid_position.x, tile.grid_position.y + direction).is_empty():
+	if not grid_system.get_cell_safe(tile.grid_position.x, tile.grid_position.y).is_empty():
 		return false
-
 
 	return true
 
-## This is a default implementation of the spawn function
-static func default(object: FTObject)->void:
-	var where_to_build := object.get_spawnable_tiles()
-	var tile_to_spawn: Tile = null
 
-	for tile in where_to_build:
-		if object.random.randf() > object.args['rarity']:
-			continue
-
-		if not object.check_tile(tile):
-			continue
-		
-		if object.args.has("tiles"):
-			tile_to_spawn = object.args['tiles'][object.random.randi() % len(object.args['tiles'])]
-		else:
-			tile_to_spawn = object.args['tile']
-
-		object.grid_system.set_cell_safe(tile.grid_position.x, tile.grid_position.y + object.direction, tile_to_spawn)
+func get_tile(tile_name:String)->Tile:
+	return chunk.painter.data_loader.get_tile_by_name(tile_name)
