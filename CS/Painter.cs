@@ -81,8 +81,9 @@ public partial class Painter : TileMap
 
         foreach (var spawner in chunk.Spawners)
         {
-            EnemyNodes.AddChild(spawner.Node);
-            spawner.Node.Set("position", MapToLocal(spawner.GridPosition));
+            Node spawnedNode = ResourceLoader.Load<PackedScene>(spawner.Node).Instantiate();
+            EnemyNodes.AddChild(spawnedNode);
+            spawnedNode.Set("position", MapToLocal(spawner.GridPosition));
         }
     }
 

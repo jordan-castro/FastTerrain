@@ -116,8 +116,9 @@ func load_tile_set(chunk: Chunk = null)->void:
 			)
 
 	for spawner in chunk.spawners:
-		enemies_node.add_child(spawner.node)
-		spawner.node.set_position(map_to_local(spawner.grid_position))
+		var node : Node = load(spawner.node).instantiate()
+		enemies_node.add_child(node)
+		node.set_position(map_to_local(spawner.grid_position))
 
 
 ## When a body enters a behavior it calls a "call_behavior" method on the body.

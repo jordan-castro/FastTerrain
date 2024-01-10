@@ -66,7 +66,7 @@ func load_terrain()->void:
 
 
 ## Spawn a [Node] into the [Painter]
-func spawn_into_painter(node: Node, position: Vector2i, node_path : String)->void:
+func spawn_into_painter(node: String, position: Vector2i, node_path : String)->void:
 	spawners.append(
 		FTSpawner.new(node, position)
 	)

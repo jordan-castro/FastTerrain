@@ -6,20 +6,20 @@ namespace FastTerrain;
 public class FTSpawner
 {
     // The node object
-    private Node node = null;
+    private string node = null;
 
     // The position of the node on the grid
     private Vector2I gridPosition = Vector2I.Zero;
 
     // Constructor
-    public FTSpawner(Node node, Vector2I gridPosition)
+    public FTSpawner(string node, Vector2I gridPosition)
     {
         this.node = node;
         this.gridPosition = gridPosition;
     }
 
     // Properties to access private fields
-    public Node Node
+    public string Node
     {
         get { return node; }
         set { node = value; }

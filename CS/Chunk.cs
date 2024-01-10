@@ -47,7 +47,7 @@ public class Chunk {
         return gridSystem.BoxSafe(PositionOnGrid, Width, Height);
     }
 
-    public void SpawnIntoPainter(Node node, Vector2I position) {
+    public void SpawnIntoPainter(string node, Vector2I position) {
         Spawners.Add(new FTSpawner(node, position));
     }
 
