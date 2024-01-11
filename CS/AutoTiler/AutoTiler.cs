@@ -5,8 +5,10 @@ namespace FastTerrain;
 
 public class AutoTiler
 {
-    private List<AutoTilerRule> Rules = null;
+    private readonly List<AutoTilerRule> Rules = null;
     private readonly Random Random = null;
+
+    public int RulesCount => Rules.Count;
 
     public AutoTiler(List<AutoTilerRule> rules, int seed)
     {
@@ -14,7 +16,14 @@ public class AutoTiler
         Random = new Random(seed);
     }
 
-    public string DecideTile(Tile tile, DirectionMap<Vector2I> neighbours, GridSystem gridSystem)
+    /// <summary>
+    /// Decide which tile to use based on the rules and neighbours.
+    /// </summary>
+    /// <param name="tile"></param>
+    /// <param name="neighbours"></param>
+    /// <param name="gridSystem"></param>
+    /// <returns></returns>
+    public string DecideTile(Tile tile, DirectionMap<Vector2I?> neighbours, GridSystem gridSystem)
     {
         // Get the rule for the tile
         AutoTilerRule rule = GetRuleForTile(tile);
@@ -23,23 +32,23 @@ public class AutoTiler
             return tile.Name;
         }
 
-        bool isMet = true;
 
         // Loop through conditions of the rule
         foreach (var condition in rule.Conditions)
         {
-            isMet = true;
+            // N, E, S, W
+            bool isMet = true;
 
             // Check if the condition is met
             foreach (var direction in neighbours.Keys())
             {
-                Vector2I value = neighbours[direction];
-                if (value.X == -1 && value.Y == -1)
+                Vector2I? value = neighbours[direction];
+                if (value is null)
                 {
                     continue;
                 }
 
-                if (!DefaultCondition(rule, condition[direction], value, gridSystem))
+                if (!DefaultCondition(rule, condition[direction], value.Value, gridSystem))
                 {
                     isMet = false;
                     break;
@@ -151,17 +160,7 @@ public class AutoTiler
             return false;
         }
 
-        if (conditionValue == "Any") {
-            return AnyCondition();
-        } else if (conditionValue == "Self") {
-            return SelfCondition(rule, neighbourValue, gridSystem);
-        }
-
-        if (conditionValue.Contains('!'))
-        {
-            return NotCondition(rule, conditionValue, neighbourValue, gridSystem);
-        }
-        else if (conditionValue.Contains('&'))
+        if (conditionValue.Contains('&'))
         {
             return AndCondition(rule, conditionValue, neighbourValue, gridSystem);
         }
@@ -169,10 +168,23 @@ public class AutoTiler
         {
             return OrCondition(rule, conditionValue, neighbourValue, gridSystem);
         }
-        else if (conditionValue.Contains('?'))
+
+        if (conditionValue.StartsWith('!'))
+        {
+            return NotCondition(rule, conditionValue, neighbourValue, gridSystem);
+        }
+        else if (conditionValue.StartsWith('?'))
         {
             return HasCondition(conditionValue, neighbourValue, gridSystem);
         }
+
+        if (conditionValue == "Any") {
+            return AnyCondition();
+        } 
+        else if (conditionValue == "Self") {
+            return SelfCondition(rule, neighbourValue, gridSystem);
+        }
+
 
         return conditionValue == gridSystem.GetCell(neighbourValue).Name;
     }

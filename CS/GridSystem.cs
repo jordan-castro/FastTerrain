@@ -62,13 +62,29 @@ public class GridSystem {
         Grid[pos.X, pos.Y] = tile;
     }
 
-    public DirectionMap<Vector2I> GetNeighbours(int x, int y) {
-        return new DirectionMap<Vector2I>(
-            new Vector2I(x, y - 1),
-            new Vector2I(x + 1, y),
-            new Vector2I(x, y + 1),
-            new Vector2I(x - 1, y)
-        );
+    public DirectionMap<Vector2I?> GetNeighbours(int x, int y) {
+        Vector2I? north = null;
+        Vector2I? east = null;
+        Vector2I? south = null;
+        Vector2I? west = null;
+
+        if (y > 0) {
+            north = new Vector2I(x, y - 1);
+        }
+
+        if (x < Grid.GetLength(0) - 1) {
+            east = new Vector2I(x + 1, y);
+        }
+
+        if (y < Grid.GetLength(1) - 1) {
+            south = new Vector2I(x, y + 1);
+        }
+
+        if (x > 0) {
+            west = new Vector2I(x - 1, y);
+        }
+
+        return new DirectionMap<Vector2I?>(north, east, south, west);
     }
 
     // Returns all cell positions of said type.

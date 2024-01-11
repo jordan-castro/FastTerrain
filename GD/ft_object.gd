@@ -51,7 +51,8 @@ func can_build_here(pos: Vector2i, width: int, height: int)-> bool:
 ## Check that the tile is valid. Checks it is not out of bounds, and that it is empty.
 func check_tile(tile: TileWithPosition)->bool:
 		# Check if the tile above is part of the chunk
-	if tile.grid_position.y < chunk.position_on_grid.y:
+	if tile.grid_position.y <= chunk.position_on_grid.y or \
+		 tile.grid_position.y >= chunk.position_on_grid.y + chunk.height:
 		return false
 
 	if not grid_system.get_cell_safe(tile.grid_position.x, tile.grid_position.y):

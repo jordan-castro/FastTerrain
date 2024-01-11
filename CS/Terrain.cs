@@ -87,9 +87,12 @@ public class Terrain
 
     private void AddBorders(AutoTiler autoTiler, List<Tile> terrainTiles, GridSystem system)
     {
+        if (autoTiler.RulesCount == 0)
+        {
+            return;
+        }
+
         List<TileWithPositionOnGrid> placeHolderTiles = new();
-        Tile tile = null;
-        string nameOfTileToUse = null;
 
         for (int x = currentChunk.PositionOnGrid.X; x < currentChunk.PositionOnGrid.X + currentChunk.Width; x++)
         {
@@ -99,18 +102,18 @@ public class Terrain
                 {
                     continue;
                 }
+                Tile tile = system.GetCell(x, y);
 
-                tile = system.GetCell(x, y);
                 if (tile.IsEmpty())
                 {
                     continue;
                 }
 
-                nameOfTileToUse = autoTiler.DecideTile(
+                string nameOfTileToUse = autoTiler.DecideTile(
                     tile,
                     system.GetNeighbours(x, y),
                     system
-                );
+                 );
 
                 foreach (var t in terrainTiles)
                 {
@@ -140,13 +143,16 @@ public class Terrain
         }
     }
 
-    private void AddObjects(List<FTObjectBuilder> objects) {
+    private void AddObjects(List<FTObjectBuilder> objects)
+    {
         GridSystem system;
-        foreach (var obj in objects) {
-           system = obj.Build(GridSystem, currentChunk);
-           if (system != null) {
-               GridSystem = system;
-           }
+        foreach (var obj in objects)
+        {
+            system = obj.Build(GridSystem, currentChunk);
+            if (system != null)
+            {
+                GridSystem = system;
+            }
         }
     }
 }

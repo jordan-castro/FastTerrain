@@ -99,7 +99,7 @@ public partial class Painter : TileMap
     public override void _PhysicsProcess(double delta)
     {
         base._Process(delta);
-        if (player == null)
+        if (player is null)
         {
             return;
         }

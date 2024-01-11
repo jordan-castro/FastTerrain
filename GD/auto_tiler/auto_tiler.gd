@@ -122,7 +122,7 @@ func has_condition(
 	neighbor_value: Vector2i,
 	gridSystem: GridSystem,
 ) -> bool:
-	var tile_name = condition_value.split("Has(")[1].split(")")[0]
+	var tile_name = condition_value.split("?")[1]
 	return tile_name in gridSystem.get_cell(neighbor_value.x, neighbor_value.y).name
 
 
@@ -137,21 +137,19 @@ func default_condition(
 
 	if "&" in condition_value:
 		return and_condition(rule, condition_value, neighbor_value, gridSystem)
-	
-	if "|" in condition_value:
+	elif "|" in condition_value:
 		return or_condition(rule, condition_value, neighbor_value, gridSystem)
 	
-	if "!" in condition_value:
+	if "!" == condition_value[0]:
 		return not_condition(rule, condition_value, neighbor_value, gridSystem)
+	elif "?" == condition_value[0]:
+		return has_condition(rule, condition_value, neighbor_value, gridSystem)
 	
 	if condition_value == "Any":
 		return any_condition()
-	
-	if condition_value == "Self":
+	elif condition_value == "Self":
 		return self_condition(rule, neighbor_value, gridSystem)
 
-	if "Has(" in condition_value:
-		return has_condition(rule, condition_value, neighbor_value, gridSystem)
 
 	# If the conditions direction is met then the condition is valid.
 	return condition_value == gridSystem.get_cell(neighbor_value.x, neighbor_value.y).name
