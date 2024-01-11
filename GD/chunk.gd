@@ -1,6 +1,6 @@
 ## The `Chunk` class represents a chunk of the terrain in the game.
 ## Each chunk has a position on the grid, a width, a height, and a loaded state.
-class_name Chunk
+class_name Chunk extends Node2D
 
 ## A boolean indicating whether the chunk is loaded or not.
 var is_loaded: bool = false
@@ -14,13 +14,14 @@ var width : int = 100
 var height : int = 100
 ## Our spawners
 var spawners : Array[FTSpawner] = []
-# Our painter for FastTerrain
+## Our painter for FastTerrain
 var painter : Painter = null
-# Cached dictionary
-var cached : Dictionary = {
-	"tiles_with_positions": [],
-	"spawned_nodes": [],
-}
+## Our terrain, each chunk has a terrain.
+var terrain : Terrain = null
+## Our tilemap which we draw our terrain on.
+var tile_map : TileMap = TileMap.new()
+
+var rect = null
 
 
 ## The constructor for the `Chunk` class.
@@ -29,59 +30,60 @@ func _init(position_on_grid_: Vector2i, width_: int, height_: int)->void:
 	position_on_grid = position_on_grid_
 	width = width_
 	height = height_
+	# Set rect and terrain.
+	rect = Rect2(position_on_grid, Vector2(width, height))
+	terrain = Terrain.new(Vector2i(width, height))
+
+
+func init(tile_set: TileSet, gb_position: Vector2):
+	# Set tilemap
+	tile_map.tile_set = tile_set
+	tile_map.global_position = gb_position
+
 
 ## Set's necessary variables for the chunk to be loaded.
-func load(painter_: Painter, full:bool=true) -> void:
+func load(painter_: Painter) -> void:
 	painter = painter_
-	# If not full, we just want access to the painter.
-	if not full:
-		return
 	
 	if is_cached:
-		# Load cached data
-		__load_from_cache()
+		visible = true
 		is_loaded = true
 		return
 	
 	load_terrain()
-	# for spawner in painter.data_loader.spawners:
-	# 	load_spawner(spawner)
 	for b in painter.data_loader.behaviors:
 		load_behavior(b)
 	is_loaded = true
-
-
-func rect()->Rect2:
-	return Rect2(position_on_grid, Vector2(width, height))
+	draw_terrain()
 
 
 ## Returns an array of tiles in the chunk.
 ## Each tile is represented as an array with two elements: the position of the tile on the grid and the tile itself.
 func get_tiles() -> Array[TileWithPosition]:
-	return painter.data_loader.terrain.grid_system.box_safe(position_on_grid, width, height)
+	return terrain.grid_system.box_safe(Vector2i(0, 0), width, height)
 
 
 func load_terrain()->void:
-	painter.data_loader.terrain.build(painter.data_loader, self)
+	terrain.build(painter.data_loader, self)
 
 
 ## Spawn a [Node] into the [Painter]
-func spawn_into_painter(node: String, position: Vector2i, node_path : String)->void:
+func spawn_into_painter(node: String, position_: Vector2i)->void:
 	spawners.append(
-		FTSpawner.new(node, position)
+		FTSpawner.new(node, position_)
 	)
 
-	if not is_cached:
-		cached['spawned_nodes'].append(
-			[node_path, position]
-		)
+	# if not is_cached:
+	# 	cached['spawned_nodes'].append(
+	# 		[node_path, position]
+	# 	)
 
 
 func load_behavior(behavior: Behavior)->void:
 	# Get all tiles of behavior.
-	var tiles_needing_this_behavior: Array[Vector2i] = painter.data_loader.terrain.grid_system.get_cells_by_type(
+	var tiles_needing_this_behavior: Array[Vector2i] = terrain.grid_system.get_cells_by_type(
 		[behavior.tile],
-		painter.data_loader.terrain.grid_system.box_safe(
+		terrain.grid_system.box_safe(
 			position_on_grid,
 			width,
 			height,
@@ -105,7 +107,7 @@ func load_behavior(behavior: Behavior)->void:
 		area.set_collision_layer_value(1, false)
 		area.set_collision_mask_value(3, true)
 
-		area.position = painter.map_to_local(tile)
+		area.position = painter.map_to_local(tile + position_on_grid)
 		area.connect("behavior_body_entered", painter._on_behavior_area_body_entered)
 		area.call_deferred("add_child", collision_shape)
 
@@ -114,27 +116,33 @@ func load_behavior(behavior: Behavior)->void:
 
 ## Unload a chunk to free up memory.
 func unload() -> void:
-	pass
-	# if not is_loaded:
-	# 	return
-	# # Remove them from the painter
-	# for spawner in spawners:
-	# 	if spawner.node.is_inside_tree():
-	# 		spawner.node.queue_free()
-	# spawners = []
-	
-	# is_cached = true
-	# is_loaded = false
+	visible = false
+	is_cached = true
 
-## Load a chunk from cache.
-func __load_from_cache():
-	pass
-	# for spawner_data in cached['spawned_nodes']:
-	# 	spawners.append(
-	# 		FTSpawner.new(
-	# 			load(spawner_data[0]).instantiate(),
-	# 			spawner_data[1]
-	# 		)
-	# 	)
-		# spawner.node = spawner.node.duplicate()
-		# spawners.append(spawner)
+
+func draw_terrain() -> void:
+	# Outside for performance
+	var tile : Tile = null
+	for x in range(width):
+		for y in range(height):
+			# Check tile needs to be drawn
+			tile = terrain.grid_system.get_cell_safe(x, y)
+			if tile == null or tile.is_empty():
+				continue
+			# set("tile_data")
+			tile_map.set_cell(
+				0,
+				Vector2i(x, y),
+				0,
+				tile.atlas,
+				tile.alt
+			)
+
+	call_deferred("add_child", tile_map)
+	call_deferred("load_nodes")
+
+func load_nodes() -> void:
+	for spawner in spawners:
+		var node = load(spawner.node).instantiate()
+		painter.enemies_node.add_child(node)
+		node.set_position(painter.map_to_local(spawner.grid_position + position_on_grid))

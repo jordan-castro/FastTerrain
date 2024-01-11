@@ -47,7 +47,7 @@ public class Terrain
         };
 
         // Generate noise
-        for (int x = currentChunk.PositionOnGrid.X; x < currentChunk.PositionOnGrid.X + currentChunk.Width; x++)
+        for (int x = 0; x < size.X; x++)
         {
             // Make sure noise does not go out of bounds
             if (x > size.X - 1)
@@ -58,7 +58,7 @@ public class Terrain
             {
                 continue;
             }
-            for (int y = currentChunk.PositionOnGrid.Y; y < currentChunk.PositionOnGrid.Y + currentChunk.Height; y++)
+            for (int y = 0; y < size.Y; y++)
             {
                 // Make sure the noise does not go out of bounds
                 if (y > size.Y - 1)
@@ -77,7 +77,7 @@ public class Terrain
                 }
 
                 // Now noise
-                float noiseValue = noise.GetNoise2D(x / scale, y / scale);
+                float noiseValue = noise.GetNoise2D(x + currentChunk.PositionOnGrid.X / scale, y + currentChunk.PositionOnGrid.Y / scale);
                 Tile tile = noiseTiles[(int)Mathf.Floor(Mathf.Abs(noiseValue) * noiseTiles.Count)];
                 GridSystem.SetCell(x, y, tile);
                 noiseSytem.SetCell(x, y, tile);
@@ -94,9 +94,9 @@ public class Terrain
 
         List<TileWithPositionOnGrid> placeHolderTiles = new();
 
-        for (int x = currentChunk.PositionOnGrid.X; x < currentChunk.PositionOnGrid.X + currentChunk.Width; x++)
+        for (int x = 0; x < size.X; x++)
         {
-            for (int y = currentChunk.PositionOnGrid.Y; y < currentChunk.PositionOnGrid.Y + currentChunk.Height; y++)
+            for (int y = 0; y < size.Y; y++)
             {
                 if (x < 0 || x > size.X - 1 || y < 0 || y > size.Y - 1)
                 {

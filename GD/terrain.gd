@@ -66,13 +66,13 @@ func _generate_noise(noise_tiles:Array[Tile], random: RandomNumberGenerator)->vo
 	fast_noise.fractal_octaves = noise_tiles.size()
 
 	# Generate noise
-	for x: int in range(current_chunk.position_on_grid.x, current_chunk.position_on_grid.x + current_chunk.width):
+	for x: int in range(size.x):
 		# Make sure the noise does not go out of bounds
 		if x > size.x - 1:
 			break
 		if x < 0:
 			continue
-		for y: int in range(current_chunk.position_on_grid.y, current_chunk.position_on_grid.y + current_chunk.height):
+		for y: int in range(size.y):
 			# Make sure the noise does not go out of bounds
 			if y > size.y - 1:
 				break
@@ -84,7 +84,7 @@ func _generate_noise(noise_tiles:Array[Tile], random: RandomNumberGenerator)->vo
 				continue
 
 			else:
-				var noise : float = fast_noise.get_noise_2d(float(x) / scale, float(y) / scale)
+				var noise : float = fast_noise.get_noise_2d(float(x + current_chunk.position_on_grid.x) / scale, float(y + current_chunk.position_on_grid.y) / scale)
 				var tile: Tile = noise_tiles[int(floor(abs(noise) * noise_tiles.size()))]
 				grid_system.set_cell(x, y, tile)
 				noise_grid_system.set_cell(x, y, tile)
@@ -99,8 +99,8 @@ func _add_borders(auto_tiler:AutoTiler, terrain_tiles:Array[Tile], system: GridS
 	var name_of_tile_to_use : String = ""
 
 	# Loop through the grid
-	for x in range(current_chunk.position_on_grid.x, current_chunk.position_on_grid.x + current_chunk.width):
-		for y in range(current_chunk.position_on_grid.y, current_chunk.position_on_grid.y + current_chunk.height):
+	for x in range(current_chunk.width):
+		for y in range(current_chunk.height):
 			# Make sure the terrain does not go out of bounds
 			if x < 0 or x > size.x - 1 or y < 0 or y > size.y - 1:
 				continue

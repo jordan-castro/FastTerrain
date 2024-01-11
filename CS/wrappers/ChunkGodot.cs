@@ -2,10 +2,10 @@ using Godot;
 
 namespace FastTerrain;
 
-public partial class ChunkGodot : GodotObject {
+public partial class GodotChunk : GodotObject {
     public Chunk chunk = null;
 
-    public ChunkGodot(Chunk chunk) {
+    public GodotChunk(Chunk chunk) {
         this.chunk = chunk;
     }
 }

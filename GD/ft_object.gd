@@ -33,10 +33,10 @@ func get_spawnable_tiles()->Array[TileWithPosition]:
 ## Check if the object can be spawned at the given position
 func can_build_here(pos: Vector2i, width: int, height: int)-> bool:
 	# Check if object would be inside the chunk
-	if pos.x < chunk.position_on_grid.x or \
-		pos.y < chunk.position_on_grid.y or \
-		pos.x + width > chunk.position_on_grid.x + chunk.width or \
-		pos.y + height > chunk.position_on_grid.y + chunk.height:
+	if pos.x < 0 or \
+		pos.y < 0 or \
+		pos.x + width > chunk.width or \
+		pos.y + height > chunk.height:
 		return false
 
 	var box : Array[TileWithPosition] = grid_system.box_safe(pos, width, height)
@@ -51,8 +51,8 @@ func can_build_here(pos: Vector2i, width: int, height: int)-> bool:
 ## Check that the tile is valid. Checks it is not out of bounds, and that it is empty.
 func check_tile(tile: TileWithPosition)->bool:
 		# Check if the tile above is part of the chunk
-	if tile.grid_position.y <= chunk.position_on_grid.y or \
-		 tile.grid_position.y >= chunk.position_on_grid.y + chunk.height:
+	if tile.grid_position.y <= 0 or \
+		 tile.grid_position.y >= chunk.height:
 		return false
 
 	if not grid_system.get_cell_safe(tile.grid_position.x, tile.grid_position.y):

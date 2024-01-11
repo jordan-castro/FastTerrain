@@ -3,6 +3,7 @@ using Godot;
 using FastTerrain;
 using System.Threading;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 public partial class Painter : TileMap
 {
@@ -14,10 +15,9 @@ public partial class Painter : TileMap
     private CharacterBody2D player = null;
     public Node BehaviorNodes = null;
     public Node EnemyNodes = null;
-    private GodotThread ChunkLoaderThread = null;
+    private GodotThread ChunkLoaderThread = new();
     public DataLoader DataLoader = null;
     private Vector2I playerPositionForThread = Vector2I.Zero;
-    private TileMap tileMap;
 
     public override void _Ready()
     {
@@ -25,68 +25,51 @@ public partial class Painter : TileMap
         GD.Print("Painter Ready");
         // Load data
         DataLoader = new DataLoader(dataFilePath, worldSeed);
+
         // Set tileset
-        TileSet = ResourceLoader.Load<TileSet>(DataLoader.TextureImage);
+        TileSet tileSet = ResourceLoader.Load<TileSet>(DataLoader.TextureImage);
+        TileSet = tileSet;
+
+        // Initialze chunks
+        foreach (var chunk in DataLoader.Chunks)
+        {
+            chunk.Initialize(tileSet, map_to_local(chunk.PositionOnGrid));
+            AddChild(chunk);
+        }
+        GD.Print("Loaded chunks");
+
         // OnReady stuff
         BehaviorNodes = GetParent().GetNode("Behaviors");
         EnemyNodes = GetParent().GetNode("Enemies");
 
         GD.Print("Painter Done Loading Data");
 
+        // Load player chunk
         Chunk playerChunk = (Chunk)DataLoader.Random.Choose(DataLoader.Chunks);
-        // Remove that chunk
         DataLoader.Chunks.Remove(playerChunk);
-        DataLoader.Terrain = playerChunk.Load(this, true, DataLoader.Terrain);
-        LoadTileSet(new ChunkGodot(playerChunk));
-        // Load player
-        List<Vector2I> spawnPoints = DataLoader.Terrain.GridSystem.GetCellsByType(
-            new string[] { "GrassTallMiddle", "GrassTallLeft", "GrassTallRight" },
-            DataLoader.Terrain.GridSystem.BoxSafe(
-                playerChunk.PositionOnGrid,
-                playerChunk.Width,
-                playerChunk.Height
-            ).ToArray()
-        );
-        Vector2I spawnPoint = (Vector2I)DataLoader.Random.Choose(spawnPoints);
-        while (spawnPoint.Y == playerChunk.PositionOnGrid.Y) {
-            spawnPoint = (Vector2I)DataLoader.Random.Choose(spawnPoints);
-        }
-        spawnPoint.Y -= 1;
-        player.GlobalPosition = MapToLocal(spawnPoint);
+        playerChunk.Load(this);
+        // // GET POSITION to spawn on
+        // List<Vector2I> spawnPoints = playerChunk.terrain.GridSystem.GetCellsByType(
+        //     new string[] { "GrassTallLeft" },
+        //     playerChunk.terrain.GridSystem.BoxSafe(
+        //         new Vector2I(0, 0),
+        //         playerChunk.Width,
+        //         playerChunk.Height
+        //     ).ToArray()
+        // );
+        // Vector2I spawnPoint = (Vector2I)DataLoader.Random.Choose(spawnPoints);
+        // while (spawnPoint.Y == playerChunk.Height)
+        // {
+        //     spawnPoint = (Vector2I)DataLoader.Random.Choose(spawnPoints);
+        // }
+        // spawnPoint.Y -= 1;
+        // Thread.Sleep(1000);
+        // player.GlobalPosition = map_to_local(spawnPoint);
+
+        ChunkLoaderThread = new GodotThread();
+        ChunkLoaderThread.Start(Callable.From(LoadChunks));
+        // Task.Run()
     }
-
-    public void LoadTileSet(ChunkGodot chunkGodot)
-    {
-        Chunk chunk = chunkGodot.chunk;
-        Tile tile = null;
-        for (int x = chunk.PositionOnGrid.X; x < chunk.PositionOnGrid.X + chunk.Width; x++)
-        {
-            for (int y = chunk.PositionOnGrid.Y; y < chunk.PositionOnGrid.Y + chunk.Height; y++)
-            {
-                tile = DataLoader.Terrain.GridSystem.GetCellSafe(x, y);
-                if (tile == null || tile.IsEmpty())
-                {
-                    continue;
-                }
-
-                SetCell(
-                    0,
-                    new Vector2I(x, y),
-                    0,
-                    tile.Atlas,
-                    tile.Alt
-                );
-            }
-        }
-
-        foreach (var spawner in chunk.Spawners)
-        {
-            Node spawnedNode = ResourceLoader.Load<PackedScene>(spawner.Node).Instantiate();
-            EnemyNodes.AddChild(spawnedNode);
-            spawnedNode.Set("position", MapToLocal(spawner.GridPosition));
-        }
-    }
-
     public void _on_behavior_area_body_entered(Node body, BehaviorArea behaviorArea)
     {
         if (body.HasMethod("call_behavior"))
@@ -96,7 +79,7 @@ public partial class Painter : TileMap
         }
     }
 
-    public override void _PhysicsProcess(double delta)
+    public override void _Process(double delta)
     {
         base._Process(delta);
         if (player is null)
@@ -104,49 +87,45 @@ public partial class Painter : TileMap
             return;
         }
 
-        if (player.IsQueuedForDeletion()) {
+        if (player.IsQueuedForDeletion())
+        {
             player = null;
             return;
         }
 
-        playerPositionForThread = LocalToMap(player.GlobalPosition);
-
-        if (ChunkLoaderThread == null)
+        var newPosition = local_to_map(player.GlobalPosition);
+        if (newPosition != playerPositionForThread)
         {
-            GD.Print("Chunk loader thread is null");
-            ChunkLoaderThread = new GodotThread();
-            ChunkLoaderThread.Start(Callable.From(LoadChunks));
+            playerPositionForThread = newPosition;
         }
     }
 
     private void LoadChunks()
     {
-        Rect2 ppp;
-        Rect2[] chunkRects = new Rect2[DataLoader.Chunks.Count];
-        Chunk chunk = null;
-        for (int i = 0; i < DataLoader.Chunks.Count; i++)
-        {
-            chunkRects[i] = DataLoader.Chunks[i].GetRect();
-        }
-
         while (true)
         {
-            ppp = new Rect2(
+            Rect2 ppp = new(
                 playerPositionForThread.X - DataLoader.Chunks[0].Width / 2,
                 playerPositionForThread.Y - DataLoader.Chunks[0].Height / 2,
                 DataLoader.Chunks[0].Width,
                 DataLoader.Chunks[0].Height
             );
 
-            for (int i = 0; i < chunkRects.Length; i++)
+            foreach (var chunk in DataLoader.Chunks)
             {
-                if (ppp.Intersects(chunkRects[i]))
+                if (chunk.IsLoaded)
                 {
-                    chunk = DataLoader.Chunks[i];
-                    if (!chunk.IsLoaded)
-                    {
-                        LoadChunk(chunk);
-                    }
+                    continue;
+                }
+
+                if (ppp.Intersects(chunk.Rect))
+                {
+                    double startTime = Time.GetUnixTimeFromSystem();
+
+                    chunk.Load(this);
+                    double endTime = Time.GetUnixTimeFromSystem();
+
+                    GD.Print("Loaded chunk in " + (endTime - startTime) + " seconds");
                 }
             }
         }
@@ -154,13 +133,12 @@ public partial class Painter : TileMap
 
     private void LoadChunk(Chunk chunk)
     {
-        double startTime = Time.GetUnixTimeFromSystem();
+        // chunk.Load(true, this);
 
-        DataLoader.Terrain = chunk.Load(this, true, DataLoader.Terrain);
-        CallDeferred(nameof(LoadTileSet), new ChunkGodot(chunk));
+        // DataLoader.Terrain = chunk.Load(this, true, DataLoader.Terrain);
+        // CallDeferred(nameof(LoadTileSet), new GodotChunk(chunk));
 
-        double endTime = Time.GetUnixTimeFromSystem();
-        GD.Print("Loaded chunk in " + (endTime - startTime) + " seconds");
+        // GD.Print("Loaded chunk in " + (endTime - startTime) + " seconds");
     }
 
     /// <summary>
@@ -182,7 +160,8 @@ public partial class Painter : TileMap
     /// <summary>
     /// For backwards compatibility
     /// </summary>
-    public void _set_cell(Vector2I position, string tileName) {
+    public void _set_cell(Vector2I position, string tileName)
+    {
         Tile tile = null;
         foreach (var t in DataLoader.Tiles)
         {
@@ -193,13 +172,20 @@ public partial class Painter : TileMap
             }
         }
 
-        DataLoader.Terrain.GridSystem.SetCell(position, tile);
-        SetCell(
-            0,
-            position,
-            0,
-            tile.Atlas,
-            tile.Alt
-        );
+        // DataLoader.Terrain.GridSystem.SetCell(position, tile);
+        // tileMap.SetCell(
+        //     0,
+        //     position,
+        //     0,
+        //     tile.Atlas,
+        //     tile.Alt
+        // );
+        // UpdateTileMap();
+    }
+
+    public override void _ExitTree()
+    {
+        base._ExitTree();
+        ChunkLoaderThread.WaitToFinish();
     }
 }

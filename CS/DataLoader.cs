@@ -8,8 +8,8 @@ namespace FastTerrain;
 public class DataLoader
 {
     public List<Tile> Tiles = new();
+    public Vector2I Size = new();
     public Random Random = null;
-    public Terrain Terrain = null;
     public string TextureImage = null;
     public AutoTiler AutoTiler = null;
     public List<Tile> NoiseTiles = new List<Tile>();
@@ -66,8 +66,7 @@ public class DataLoader
             }
         }
         // Terrain
-        Terrain = new Terrain(
-            new Vector2I(
+        Size = new Vector2I(
                 Random.Range(
                     (int)data["terrainSize"]["width"]["min"],
                     (int)data["terrainSize"]["width"]["max"]
@@ -76,14 +75,13 @@ public class DataLoader
                     (int)data["terrainSize"]["height"]["min"],
                     (int)data["terrainSize"]["height"]["max"]
                 )
-            )
-        );
+            );
         int chunkWidth = (int)data["chunk"]["width"];
         int chunkHeight = (int)data["chunk"]["height"];
         // Setup Chunks
-        for (int x = 0; x < Terrain.size.X; x += chunkWidth)
+        for (int x = 0; x < Size.X; x += chunkWidth)
         {
-            for (int y = 0; y < Terrain.size.Y; y += chunkHeight)
+            for (int y = 0; y < Size.Y; y += chunkHeight)
             {
                 Chunks.Add(
                                     new Chunk(

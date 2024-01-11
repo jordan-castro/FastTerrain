@@ -69,10 +69,10 @@ public class FTObject
     protected bool CanBuildHere(Vector2I position, int width, int height)
     {
         // Check we are within the chunk
-        if (position.X < Chunk.PositionOnGrid.X ||
-        position.Y < Chunk.PositionOnGrid.Y ||
-        position.X + width > Chunk.PositionOnGrid.X + Chunk.Width ||
-        position.Y + height > Chunk.PositionOnGrid.Y + Chunk.Height)
+        if (position.X < 0 ||
+        position.Y < 0 ||
+        position.X + width > Chunk.Width ||
+        position.Y + height > Chunk.Height)
         {
             return false;
         }
@@ -92,8 +92,8 @@ public class FTObject
 
     protected bool IsValidTile(Vector2I position)
     {
-        if (position.Y <= Chunk.PositionOnGrid.Y ||
-        position.Y >= Chunk.PositionOnGrid.Y + Chunk.Height)
+        if (position.Y <= 0 ||
+        position.Y >= Chunk.Height)
         {
             return false;
         }

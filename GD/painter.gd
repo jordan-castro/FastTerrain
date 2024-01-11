@@ -31,94 +31,46 @@ func _ready():
 	print("Game START")
 	# Load data
 	data_loader.init(data_file_path, world_seed)
-	tile_set = load(data_loader.texture_image)
+	var t_set = load(data_loader.texture_image)
+	tile_set = t_set
+
+	# Initialize chunks
+	for chunk in data_loader.chunks:
+		chunk.init(t_set, map_to_local((chunk.position_on_grid)))
+		# chunk.tile_set = t_set
+		# chunk.global_position = map_to_local(chunk.position_on_grid)
+		add_child(chunk)
 
 	print("Loaded data.")
+	print("Chunks ", data_loader.chunks.size())
 
 	# Load player chunk
 	var player_chunk = data_loader.chunks[(data_loader.random.randi() + 1) % data_loader.chunks.size()]
 	data_loader.chunks.remove_at(data_loader.chunks.find(player_chunk))
-	player_chunk.load(self, false)
-	player_chunk.load_terrain()
+	player_chunk.load(self)
 	print("Loaded terrain")
 
-	for behavior in data_loader.behaviors:
-		player_chunk.load_behavior(behavior)
-	load_tile_set(player_chunk)
 	print("Loaded player chunk.")
-
-	# # Load the world chunk in a separate thread
-	# var load_world_chunk : Callable = func ():
-	# 	# Load world objects.
-	# 	# Use a world chunk to load all the world objects at once!
-	# 	var world_chunk = Chunk.new(
-	# 		Vector2i(0, 0),
-	# 		data_loader.terrain.size.x,
-	# 		data_loader.terrain.size.y,
-	# 	)
-	# 	world_chunk.load(self, false)
-	# 	# Load world objects
-	# 	data_loader.terrain.current_chunk = world_chunk
-	# 	data_loader.terrain._add_objects(data_loader.world_objects)
-	# 	data_loader.terrain._add_borders(data_loader.auto_tiler, data_loader.tiles, data_loader.terrain.grid_system)
-
-	# 	for behavior in data_loader.behaviors:
-	# 		world_chunk.load_behavior(behavior)
-	# 	load_tile_set(world_chunk)
-	# 	# call_deferred("load_tile_set", false, world_chunk)
-	# 	print("Loaded world chunk.")
-
-	# world_chunk_loader_thread.start(load_world_chunk)
+	await get_tree().create_timer(0.2).timeout
 
 	# Set player position
-	var possible_spawn_tiles = data_loader.terrain.grid_system.get_cells_by_type(
+	var possible_spawn_tiles = player_chunk.terrain.grid_system.get_cells_by_type(
 		["GrassTallLeft"],
-		data_loader.terrain.grid_system.box_safe(
-			player_chunk.position_on_grid,
+		player_chunk.terrain.grid_system.box_safe(
+			Vector2i(0,0),
 			player_chunk.width,
 			player_chunk.height,
 		)
 	)
+	# chunk_loader_thread = Thread.new()
+	chunk_loader_thread.start(load_chunks)
 
-	if possible_spawn_tiles.size() == 0:
-		return
+	# var tile_to_spawn_on = possible_spawn_tiles[
+	# 	(data_loader.random.randi() + 1) % possible_spawn_tiles.size()
+	# ]
+	# tile_to_spawn_on.y -= 1
 
-	var tile_to_spawn_on = possible_spawn_tiles[
-		(data_loader.random.randi() + 1) % possible_spawn_tiles.size()
-	]
-	tile_to_spawn_on.y -= 1
-
-	player.global_position = map_to_local(tile_to_spawn_on)
-
-
-func load_tile_set(chunk: Chunk = null)->void:
-	# Add tiles
-	var x_range_start = 0 if chunk == null else chunk.position_on_grid.x
-	var x_range_end = data_loader.terrain.size.x if chunk == null else chunk.position_on_grid.x + chunk.width
-
-	var y_range_start = 0 if chunk == null else chunk.position_on_grid.y
-	var y_range_end = data_loader.terrain.size.y if chunk == null else chunk.position_on_grid.y + chunk.height
-
-	for x in range(x_range_start, x_range_end):
-		for y in range(y_range_start, y_range_end):
-			# Load tile
-			var tile : Tile = data_loader.terrain.grid_system.get_cell_safe(x, y)
-			# Skip if empty
-			if tile == null or tile.is_empty():
-				continue
-			# Add tile
-			set_cell(
-				0, # This is the layer. We only have one layer. If you want more layers, you will need to add them. (See how-to-add-more-layers.md)
-				Vector2i(x, y), # This is the position of the tile.
-				0, # This is the tile index. We only have one tileset. If you want more tilesets, you will need to add them. (See how-to-add-more-tilesets.md)
-				tile.atlas, # Our tile atlas. This is the tile we want to load.
-				tile.alt
-			)
-
-	for spawner in chunk.spawners:
-		var node : Node = load(spawner.node).instantiate()
-		enemies_node.add_child(node)
-		node.set_position(map_to_local(spawner.grid_position))
+	# player.global_position = map_to_local(tile_to_spawn_on)
 
 
 ## When a body enters a behavior it calls a "call_behavior" method on the body.
@@ -132,47 +84,29 @@ func _on_behavior_area_body_entered(body: Node, behavior_area: BehaviorArea)->vo
 func _process(_delta):
 	if player == null:
 		return
-
-	player_position_for_thread = local_to_map(player.global_position)
-
-	if not chunk_loader_thread.is_alive():
-		chunk_loader_thread = Thread.new()
-		chunk_loader_thread.start(load_chunks)
+	
+	var new_pos = local_to_map(player.global_position)
+	if new_pos.x != player_position_for_thread.x or new_pos.y != player_position_for_thread.y:
+		player_position_for_thread = new_pos
 
 
 func load_chunks()->void:
 	var ppp = Vector2i.ZERO
-	# var ppn = Vector2i.ZERO
-	var chunk_rects = []
-	for chunk in data_loader.chunks:
-		chunk_rects.append(
-			[
-				chunk,
-				chunk.rect()
-			]
-		)
 
-	while data_loader.chunks.size() > 0:
+	while true:
 		ppp = Rect2(
 			player_position_for_thread.x - data_loader.data["chunk"]["width"] / 2,
 			player_position_for_thread.y - data_loader.data["chunk"]["height"] / 2,
 			data_loader.data["chunk"]["width"],
 			data_loader.data["chunk"]["height"]
 		)
-		# ppn = Rect2(
-		# 	player_position_for_thread.x - data_loader.data["chunk"]["width"] / 2,
-		# 	player_position_for_thread.y - data_loader.data["chunk"]["height"] / 2,
-		# 	data_loader.data["chunk"]["width"] * 2,
-		# 	data_loader.data["chunk"]["height"] * 2
-		# )
 
-		for chunk_rect in chunk_rects:
-			if ppp.intersects(chunk_rect[1]):
-				if not chunk_rect[0].is_loaded:
-					load_chunk(chunk_rect[0])
-			# elif ppn.intersects(chunk_rect[1]):
-			# 	if chunk_rect[0].is_loaded:
-			# 		unload_chunk(chunk_rect[0])
+		for chunk in data_loader.chunks:
+			if chunk.is_loaded:
+				# data_loader.chunks[data_loader.chunks.find(chunk)] = null
+				continue
+			if ppp.intersects(chunk.rect):
+				load_chunk(chunk)
 
 
 func load_chunk(chunk: Chunk)->void:
@@ -180,15 +114,10 @@ func load_chunk(chunk: Chunk)->void:
 	var start_time = Time.get_unix_time_from_system()
 	# Initalize chunk
 	chunk.load(self)
-	call_deferred("load_tile_set", chunk)
 	# call_deferred("load_tile_set", chunk)
 	var end_time = Time.get_unix_time_from_system()
 
 	print("Loaded chunk in " + str(end_time - start_time) + " seconds.")
-
-
-func unload_chunk(chunk: Chunk)->void:
-	chunk.unload()
 
 
 func _set_cell(position_: Vector2i, tilename: String)->void:
@@ -196,11 +125,15 @@ func _set_cell(position_: Vector2i, tilename: String)->void:
 	if tile == null:
 		return
 
-	data_loader.terrain.grid_system.set_cell(position_.x, position_.y, tile)
-	set_cell(
-		0,
-		position_,
-		0,
-		tile.atlas,
-		tile.alt,
-	)
+	# data_loader.terrain.grid_system.set_cell(position_.x, position_.y, tile)
+	# set_cell(
+	# 	0,
+	# 	position_,
+	# 	0,
+	# 	tile.atlas,
+	# 	tile.alt,
+	# )
+
+
+func _exit_tree():
+	chunk_loader_thread.wait_to_finish()

@@ -64,7 +64,7 @@ func get_cells_by_type(type:Array, grid_box:Array[TileWithPosition])->Array[Vect
 	var cells: Array[Vector2i] = []
 
 	for tile in grid_box:
-		if tile.tile.name in  type:
+		if tile.tile.name in type:
 			cells.append(tile.grid_position)
 
 	return cells

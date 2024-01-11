@@ -8,8 +8,8 @@ var tiles: Array[Tile] = []
 ## A random number generator
 var random : RandomNumberGenerator = null
 
-## Our terrain genereator
-var terrain : Terrain = null
+## Size of full map
+var size_of_map : Vector2i = Vector2i.ZERO
 
 ## The path to the tileset image
 var texture_image : String = ""
@@ -70,8 +70,7 @@ func init(path_to_json: String, world_seed:int)->void:
 				noise_tiles.append(t)
 				break
 	# Setup terrain
-	terrain = Terrain.new(
-		Vector2i(
+	size_of_map = Vector2i(
 			random.randi_range(
 				data['terrainSize']['width']['min'],
 				data['terrainSize']['width']['max']
@@ -81,10 +80,9 @@ func init(path_to_json: String, world_seed:int)->void:
 				data['terrainSize']['height']['max']
 			)
 		)
-	)
 	# Setup chunks
-	for x in range(0, terrain.size.x, data['chunk']['width']):
-		for y in range(0, terrain.size.y, data['chunk']['height']):
+	for x in range(0, size_of_map.x, data['chunk']['width']):
+		for y in range(0, size_of_map.y, data['chunk']['height']):
 			chunks.append(
 				Chunk.new(
 					Vector2i(x, y),
