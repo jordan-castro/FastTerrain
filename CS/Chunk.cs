@@ -16,7 +16,7 @@ public partial class Chunk : Node2D {
     /// </summary>
     public Terrain terrain = null;
     private Painter painter = null;
-    public TileMap offScreen = null;
+    public TileMap tileMap = null;
 
     public Chunk(Vector2I positionOnGrid, int width, int height) {
         PositionOnGrid = positionOnGrid;
@@ -25,7 +25,7 @@ public partial class Chunk : Node2D {
         rect = new Rect2(PositionOnGrid, Width, Height);
 
         terrain = new Terrain(new Vector2I(Width, Height));
-        offScreen = new TileMap();
+        tileMap = new TileMap();
     }
 
     /// <summary>
@@ -33,8 +33,8 @@ public partial class Chunk : Node2D {
     /// </summary>
     /// <param name="tileSet"></param>
     public void Initialize(TileSet tileSet, Vector2 globalPosition) {
-        offScreen.TileSet = tileSet;
-        offScreen.Name = "ChunkTileMap";
+        tileMap.TileSet = tileSet;
+        tileMap.Name = "ChunkTileMap";
         Name = $"Chunk {PositionOnGrid.X}x{PositionOnGrid.Y} {Width}x{Height}";
         GlobalPosition = globalPosition;
         
@@ -92,7 +92,7 @@ public partial class Chunk : Node2D {
             area.SetCollisionLayerValue(1, false);
             area.SetCollisionMaskValue(3, true);
 
-            area.Position = painter.map_to_local(tile);
+            area.Position = painter.map_to_local(PositionOnGrid) + tileMap.MapToLocal(tile);
             area.BehaviorBodyEntered += painter._on_behavior_area_body_entered;
             area.CallDeferred("add_child", collisionShape2D);
 
@@ -111,7 +111,7 @@ public partial class Chunk : Node2D {
                 if (tile == null || tile.IsEmpty()) {
                     continue;
                 }
-                offScreen.SetCell(
+                tileMap.SetCell(
                     0,
                     new Vector2I(x, y),
                     0,
@@ -121,7 +121,7 @@ public partial class Chunk : Node2D {
             }
         }
 
-        CallDeferred("add_child", offScreen);
+        CallDeferred("add_child", tileMap);
         CallDeferred(nameof(SpawnNode));
     }
 
@@ -129,7 +129,7 @@ public partial class Chunk : Node2D {
         foreach (var spawner in Spawners) {
             Node2D node = (Node2D)ResourceLoader.Load<PackedScene>(spawner.Node).Instantiate();
             painter.EnemyNodes.AddChild(node);
-            node.GlobalPosition = painter.map_to_local(spawner.GridPosition + PositionOnGrid);
+            node.GlobalPosition = painter.map_to_local(PositionOnGrid) + tileMap.MapToLocal(spawner.GridPosition);
         }
     }
 }

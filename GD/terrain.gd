@@ -102,7 +102,7 @@ func _add_borders(auto_tiler:AutoTiler, terrain_tiles:Array[Tile], system: GridS
 	for x in range(current_chunk.width):
 		for y in range(current_chunk.height):
 			# Make sure the terrain does not go out of bounds
-			if x < 0 or x > size.x - 1 or y < 0 or y > size.y - 1:
+			if x <= 0 or x >= size.x - 1 or y <= 0 or y >= size.y - 1:
 				continue
 			
 			tile = system.get_cell_safe(x, y)

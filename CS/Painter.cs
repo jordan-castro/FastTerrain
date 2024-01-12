@@ -1,9 +1,7 @@
 using Godot;
 
 using FastTerrain;
-using System.Threading;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 public partial class Painter : TileMap
 {
@@ -46,29 +44,26 @@ public partial class Painter : TileMap
 
         // Load player chunk
         Chunk playerChunk = (Chunk)DataLoader.Random.Choose(DataLoader.Chunks);
-        DataLoader.Chunks.Remove(playerChunk);
         playerChunk.Load(this);
-        // // GET POSITION to spawn on
-        // List<Vector2I> spawnPoints = playerChunk.terrain.GridSystem.GetCellsByType(
-        //     new string[] { "GrassTallLeft" },
-        //     playerChunk.terrain.GridSystem.BoxSafe(
-        //         new Vector2I(0, 0),
-        //         playerChunk.Width,
-        //         playerChunk.Height
-        //     ).ToArray()
-        // );
-        // Vector2I spawnPoint = (Vector2I)DataLoader.Random.Choose(spawnPoints);
-        // while (spawnPoint.Y == playerChunk.Height)
-        // {
-        //     spawnPoint = (Vector2I)DataLoader.Random.Choose(spawnPoints);
-        // }
-        // spawnPoint.Y -= 1;
-        // Thread.Sleep(1000);
-        // player.GlobalPosition = map_to_local(spawnPoint);
+        // GET POSITION to spawn on
+        List<Vector2I> spawnPoints = playerChunk.terrain.GridSystem.GetCellsByType(
+            new string[] { "GrassTallMiddle", "GrassTallLeft", "GrassTallRight" },
+            playerChunk.terrain.GridSystem.BoxSafe(
+                new Vector2I(0, 0),
+                playerChunk.Width,
+                playerChunk.Height
+            ).ToArray()
+        );
+        GD.Print("points " + spawnPoints.Count);
+        Vector2I spawnPoint = (Vector2I)DataLoader.Random.Choose(spawnPoints);
+        while (spawnPoint.Y == playerChunk.Height)
+        {
+            spawnPoint = (Vector2I)DataLoader.Random.Choose(spawnPoints);
+        }
+        spawnPoint.Y -= 1;
+        player.GlobalPosition = playerChunk.tileMap.MapToLocal(spawnPoint) + map_to_local(playerChunk.PositionOnGrid);
 
-        ChunkLoaderThread = new GodotThread();
         ChunkLoaderThread.Start(Callable.From(LoadChunks));
-        // Task.Run()
     }
     public void _on_behavior_area_body_entered(Node body, BehaviorArea behaviorArea)
     {
@@ -120,25 +115,10 @@ public partial class Painter : TileMap
 
                 if (ppp.Intersects(chunk.Rect))
                 {
-                    double startTime = Time.GetUnixTimeFromSystem();
-
                     chunk.Load(this);
-                    double endTime = Time.GetUnixTimeFromSystem();
-
-                    GD.Print("Loaded chunk in " + (endTime - startTime) + " seconds");
                 }
             }
         }
-    }
-
-    private void LoadChunk(Chunk chunk)
-    {
-        // chunk.Load(true, this);
-
-        // DataLoader.Terrain = chunk.Load(this, true, DataLoader.Terrain);
-        // CallDeferred(nameof(LoadTileSet), new GodotChunk(chunk));
-
-        // GD.Print("Loaded chunk in " + (endTime - startTime) + " seconds");
     }
 
     /// <summary>
@@ -162,6 +142,7 @@ public partial class Painter : TileMap
     /// </summary>
     public void _set_cell(Vector2I position, string tileName)
     {
+        // Get tile.
         Tile tile = null;
         foreach (var t in DataLoader.Tiles)
         {
@@ -171,21 +152,37 @@ public partial class Painter : TileMap
                 break;
             }
         }
-
-        // DataLoader.Terrain.GridSystem.SetCell(position, tile);
-        // tileMap.SetCell(
-        //     0,
-        //     position,
-        //     0,
-        //     tile.Atlas,
-        //     tile.Alt
-        // );
-        // UpdateTileMap();
+        // If it is null still, i.e. no tile found, return.
+        if (tile is null) {
+            return;
+        }
+        Chunk chunk = null;
+        // Find the chunk this position belongs to
+        foreach (var c in DataLoader.Chunks) {
+            if (c.Rect.HasPoint(position)) {
+                chunk = c;
+                break;
+            }
+        }
+        // If it is null, i.e. no chunk found. return
+        if (chunk is null) {
+            return;
+        }
+ 
+        Vector2I tilePositionOnChunk = new Vector2I(
+            position.X - chunk.PositionOnGrid.X - 1, // - 1 because the chunk is 1 placed more
+            position.Y - chunk.PositionOnGrid.Y - 1
+        );
+        // Set
+        chunk.terrain.GridSystem.SetCellSafe(tilePositionOnChunk, tile);
+        // Update TileMap
+        chunk.tileMap.SetCell(
+            0,
+            tilePositionOnChunk,
+            0,
+            tile.Atlas,
+            tile.Alt
+        );
     }
 
-    public override void _ExitTree()
-    {
-        base._ExitTree();
-        ChunkLoaderThread.WaitToFinish();
-    }
 }

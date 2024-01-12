@@ -73,18 +73,13 @@ func spawn_into_painter(node: String, position_: Vector2i)->void:
 		FTSpawner.new(node, position_)
 	)
 
-	# if not is_cached:
-	# 	cached['spawned_nodes'].append(
-	# 		[node_path, position]
-	# 	)
-
 
 func load_behavior(behavior: Behavior)->void:
 	# Get all tiles of behavior.
 	var tiles_needing_this_behavior: Array[Vector2i] = terrain.grid_system.get_cells_by_type(
 		[behavior.tile],
 		terrain.grid_system.box_safe(
-			position_on_grid,
+			Vector2i.ZERO,
 			width,
 			height,
 		)
@@ -107,17 +102,11 @@ func load_behavior(behavior: Behavior)->void:
 		area.set_collision_layer_value(1, false)
 		area.set_collision_mask_value(3, true)
 
-		area.position = painter.map_to_local(tile + position_on_grid)
+		area.position = painter.map_to_local(position_on_grid) + tile_map.map_to_local(tile)
 		area.connect("behavior_body_entered", painter._on_behavior_area_body_entered)
 		area.call_deferred("add_child", collision_shape)
 
-		painter.behaviors_node.call_deferred("add_child", area)
-
-
-## Unload a chunk to free up memory.
-func unload() -> void:
-	visible = false
-	is_cached = true
+		painter.behaviors_node.call_deferred_thread_group("add_child", area)
 
 
 func draw_terrain() -> void:
@@ -129,20 +118,22 @@ func draw_terrain() -> void:
 			tile = terrain.grid_system.get_cell_safe(x, y)
 			if tile == null or tile.is_empty():
 				continue
-			# set("tile_data")
+			# Set the cell
 			tile_map.set_cell(
-				0,
-				Vector2i(x, y),
-				0,
-				tile.atlas,
-				tile.alt
+				0, # Layer
+				Vector2i(x, y), # Position
+				0, # source_id Not used
+				tile.atlas, # Atlas on TileSet 
+				tile.alt # Alt on TileSet, 0 is default
 			)
-
+	
+	# Add the tilemap
 	call_deferred("add_child", tile_map)
+	# Load spawners
 	call_deferred("load_nodes")
 
 func load_nodes() -> void:
 	for spawner in spawners:
 		var node = load(spawner.node).instantiate()
 		painter.enemies_node.add_child(node)
-		node.set_position(painter.map_to_local(spawner.grid_position + position_on_grid))
+		node.position = painter.map_to_local(position_on_grid) + tile_map.map_to_local(spawner.grid_position)
