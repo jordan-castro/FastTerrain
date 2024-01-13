@@ -135,3 +135,48 @@ static func filter_tiles_as_array(tiles:Array[TileWithPosition], type:Array)->Ar
 			filtered_tiles.append(tile)
 
 	return filtered_tiles
+
+
+# ## Transform 2 GridSystems into 1
+# ## - Args:
+# ## base - [GridSystem] the system that is added too.
+# ## add - [GridSystem] The grid to add.
+# ## direction - [String] The direction to add the grid in, can be N, E, S, W
+# static func transform_2_into_1(
+# 	base: GridSystem, 
+#	add: GridSystem, 
+# 	direction: String
+# ) -> GridSystem:
+# 	var system : GridSystem = GridSystem.new(
+# 		Vector2i(
+# 			base.grid.size() + add.grid.size(),
+# 			base.grid[0].size() + add.grid[0].size()
+# 		),
+# 		null
+# 	)
+#
+# 	for x in range(base.grid.size()):
+# 		for y in range(base.grid[0].size()):
+# 			system.set_cell_safe(x, y, base.grid[x][y])
+#
+# 	var x: int = 0
+# 	var y: int = 0
+#
+# 	if direction == "N":
+# 		x = 0
+# 		y = -add.grid[0].size()
+# 	elif direction == "E":
+# 		x = base.grid.size()
+# 		y = 0
+# 	elif direction == "S":
+# 		x = 0
+# 		y = base.grid[0].size()
+# 	elif direction == "W":
+# 		x = -add.grid.size()
+# 		y = 0
+#
+# 	for i in range(add.grid.size()):
+# 		for j in range(add.grid[0].size()):
+# 			system.set_cell_safe(x+i, y+j, add.grid[i][j])
+#
+# 	return system

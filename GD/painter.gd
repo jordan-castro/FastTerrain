@@ -9,25 +9,12 @@ class_name Painter extends TileMap
 @export var world_seed : int = 01312002
 
 ## The player
-@export var player : Player = null
-
-@onready var behaviors_node : Node = get_parent().get_node("Behaviors")
-@onready var enemies_node : Node = get_parent().get_node("Enemies")
-
-## The chunk loader thread
-var chunk_loader_thread : Thread = Thread.new()
-
-## The world chunk loader
-var world_chunk_loader_thread : Thread = Thread.new()
+@onready var player : Player = $Player
 
 ## Dataloader
 var data_loader : DataLoader = DataLoader.new()
 
-## Player position for thread
-var player_position_for_thread : Vector2i = Vector2i.ZERO
-
-var nodes_to_add = {}
-
+var count : int = 0
 
 func _ready():
 	print("Game START")
@@ -38,7 +25,7 @@ func _ready():
 
 	# Initialize chunks
 	for chunk in data_loader.chunks:
-		chunk.init(t_set, map_to_local((chunk.position_on_grid)))
+		chunk.init(t_set, map_to_local(chunk.position_on_grid), self)
 		# chunk.tile_set = t_set
 		# chunk.global_position = map_to_local(chunk.position_on_grid)
 		add_child(chunk)
@@ -48,11 +35,10 @@ func _ready():
 
 	# Load player chunk
 	var player_chunk = data_loader.chunks[(data_loader.random.randi() + 1) % data_loader.chunks.size()]
-	player_chunk.load(self)
+	player_chunk.load(null)
 	print("Loaded terrain")
 
 	print("Loaded player chunk.")
-	await get_tree().create_timer(0.2).timeout
 
 	# Set player position
 	var possible_spawn_tiles = player_chunk.terrain.grid_system.get_cells_by_type(
@@ -76,11 +62,8 @@ func _ready():
 	
 	tile_to_spawn_on.y -= 1
 
-	player.global_position = player_chunk.tile_map.map_to_local(tile_to_spawn_on) + map_to_local(player_chunk.position_on_grid)
+	player.position = player_chunk.tile_map.map_to_local(tile_to_spawn_on) + map_to_local(player_chunk.position_on_grid)
 	
-	# Start chunk loader thread.
-	chunk_loader_thread.start(load_chunks)
-
 
 ## When a body enters a behavior it calls a "call_behavior" method on the body.
 ## This function is triggered when a body enters a behavior area.
@@ -90,45 +73,6 @@ func _on_behavior_area_body_entered(body: Node, behavior_area: BehaviorArea)->vo
 		body.call_behavior(behavior_area, self)
 
 
-func _process(_delta):
-	if player == null:
-		return
-	
-	var new_pos = local_to_map(player.global_position)
-	if new_pos.x != player_position_for_thread.x or new_pos.y != player_position_for_thread.y:
-		player_position_for_thread = new_pos
-
-
-func load_chunks()->void:
-	var ppp = Vector2i.ZERO
-
-	while true:
-		ppp = Rect2(
-			player_position_for_thread.x - data_loader.data["chunk"]["width"] / 2,
-			player_position_for_thread.y - data_loader.data["chunk"]["height"] / 2,
-			data_loader.data["chunk"]["width"],
-			data_loader.data["chunk"]["height"]
-		)
-
-		for chunk in data_loader.chunks:
-			if chunk.is_loaded:
-				# data_loader.chunks[data_loader.chunks.find(chunk)] = null
-				continue
-			if ppp.intersects(chunk.rect):
-				load_chunk(chunk)
-
-
-func load_chunk(chunk: Chunk)->void:
-	# For debugging
-	var start_time = Time.get_unix_time_from_system()
-	# Initalize chunk
-	chunk.load(self)
-	# call_deferred("load_tile_set", chunk)
-	var end_time = Time.get_unix_time_from_system()
-
-	print("Loaded chunk in " + str(end_time - start_time) + " seconds.")
-
-
 func _set_cell(position_: Vector2i, tilename: String)->void:
 	var tile : Tile = data_loader.get_tile_by_name(tilename)
 	if tile == null:
@@ -136,25 +80,27 @@ func _set_cell(position_: Vector2i, tilename: String)->void:
 
 	# Find the chunk that the tile is in
 	var chunk : Chunk = null
-
+	
+	# Find the chunk that the tile is in
 	for c in data_loader.chunks:
 		# Check that position_ is in the chunk
 		if c.rect.has_point(position_):
 			chunk = c
 			break
-
+	
+	# Get the position of the tile on the chunk
 	var tile_position_on_chunk : Vector2i = Vector2i(
-		position_.x - chunk.position_on_grid.x - 1,
-		position_.y - chunk.position_on_grid.y - 1
+		position_.x - chunk.position_on_grid.x - 1, # It is always -1
+		position_.y - chunk.position_on_grid.y - 1 # It is always -1
 	)
-
+	
+	# Set chunk grid_system
 	chunk.terrain.grid_system.set_cell(
 		tile_position_on_chunk.x,
 		tile_position_on_chunk.y,
 		tile
 	)
-	print(tile_position_on_chunk)
-	# print(chunk.terrain.grid_system.get_cell(tile_position_on_chunk.x, tile_position_on_chunk.y).name)
+	# Set chunk tile_map
 	chunk.tile_map.set_cell(
 		0,
 		tile_position_on_chunk,
@@ -162,3 +108,4 @@ func _set_cell(position_: Vector2i, tilename: String)->void:
 		tile.atlas,
 		tile.alt,
 	)
+

@@ -11,8 +11,6 @@ public partial class Painter : TileMap
     public int worldSeed = 0;
     [Export]
     private CharacterBody2D player = null;
-    public Node BehaviorNodes = null;
-    public Node EnemyNodes = null;
     private GodotThread ChunkLoaderThread = new();
     public DataLoader DataLoader = null;
     private Vector2I playerPositionForThread = Vector2I.Zero;
@@ -28,22 +26,21 @@ public partial class Painter : TileMap
         TileSet tileSet = ResourceLoader.Load<TileSet>(DataLoader.TextureImage);
         TileSet = tileSet;
 
+        GDScript enemyScript = ResourceLoader.Load<GDScript>("res://scripts/utils/Enemies.gd");
+
         // Initialze chunks
         foreach (var chunk in DataLoader.Chunks)
         {
-            chunk.Initialize(tileSet, map_to_local(chunk.PositionOnGrid));
+            chunk.Initialize(tileSet, map_to_local(chunk.PositionOnGrid), enemyScript);
             AddChild(chunk);
         }
         GD.Print("Loaded chunks");
-
-        // OnReady stuff
-        BehaviorNodes = GetParent().GetNode("Behaviors");
-        EnemyNodes = GetParent().GetNode("Enemies");
 
         GD.Print("Painter Done Loading Data");
 
         // Load player chunk
         Chunk playerChunk = (Chunk)DataLoader.Random.Choose(DataLoader.Chunks);
+        GD.Print(playerChunk.Name);
         playerChunk.Load(this);
         // GET POSITION to spawn on
         List<Vector2I> spawnPoints = playerChunk.terrain.GridSystem.GetCellsByType(
@@ -100,10 +97,10 @@ public partial class Painter : TileMap
         while (true)
         {
             Rect2 ppp = new(
-                playerPositionForThread.X - DataLoader.Chunks[0].Width / 2,
-                playerPositionForThread.Y - DataLoader.Chunks[0].Height / 2,
-                DataLoader.Chunks[0].Width,
-                DataLoader.Chunks[0].Height
+                playerPositionForThread.X - DataLoader.Chunks[0].Width,
+                playerPositionForThread.Y - DataLoader.Chunks[0].Height,
+                DataLoader.Chunks[0].Width * 2,
+                DataLoader.Chunks[0].Height * 2
             );
 
             foreach (var chunk in DataLoader.Chunks)
@@ -169,7 +166,7 @@ public partial class Painter : TileMap
             return;
         }
  
-        Vector2I tilePositionOnChunk = new Vector2I(
+        Vector2I tilePositionOnChunk = new(
             position.X - chunk.PositionOnGrid.X - 1, // - 1 because the chunk is 1 placed more
             position.Y - chunk.PositionOnGrid.Y - 1
         );
