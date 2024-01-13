@@ -61,6 +61,17 @@ func _init(position_on_grid_: Vector2i, width_: int, height_: int)->void:
 	load_body_area2d.set_collision_mask_value(6, true)
 	unload_body_area2d.set_collision_mask_value(6, true)
 	# Shape
+	call_deferred("try")
+	# try()
+	# Connects
+	load_body_area2d.connect("body_entered", self.load)
+	unload_body_area2d.connect("body_exited", self.unload)
+
+	add_child(load_body_area2d)
+	add_child(unload_body_area2d)
+
+
+func try():
 	var load_collision_shape = CollisionShape2D.new()
 	load_collision_shape.shape = RectangleShape2D.new()
 	load_collision_shape.shape.size = Vector2(width * 75, height * 75)
@@ -69,12 +80,6 @@ func _init(position_on_grid_: Vector2i, width_: int, height_: int)->void:
 	unload_collision_shape.shape = RectangleShape2D.new()
 	unload_collision_shape.shape.size = Vector2(width * 100, height * 100)
 	unload_body_area2d.add_child(unload_collision_shape)
-	# Connects
-	load_body_area2d.connect("body_entered", self.load)
-	unload_body_area2d.connect("body_exited", self.unload)
-
-	add_child(load_body_area2d)
-	add_child(unload_body_area2d)
 
 
 func init(tile_set: TileSet, gb_position: Vector2, painter_: Painter):
@@ -102,18 +107,25 @@ func load(_body) -> void:
 	if _body == null:
 		should_wait = true
 
-	var t = Thread.new()
-	t.start(
-		func():
-			load_terrain()
-			for b in painter.data_loader.behaviors:
-				load_behavior(b)
-			is_loaded = true
-			call_deferred("draw_terrain")
-			call_deferred("load_nodes")
-	)
-	if should_wait:
-		t.wait_to_finish()
+	load_terrain()
+	for b in painter.data_loader.behaviors:
+		load_behavior(b)
+	is_loaded = true
+	draw_terrain()
+	load_nodes()
+
+	# var t = Thread.new()
+	# t.start(
+	# 	func():
+	# 		load_terrain()
+	# 		for b in painter.data_loader.behaviors:
+	# 			load_behavior(b)
+	# 		is_loaded = true
+	# 		call_deferred("draw_terrain")
+	# 		call_deferred("load_nodes")
+	# )
+	# if should_wait:
+	# 	t.wait_to_finish()
 
 
 ## Returns an array of tiles in the chunk.
@@ -163,8 +175,9 @@ func load_behavior(behavior: Behavior)->void:
 
 		area.position = tile_map.map_to_local(tile) + painter.map_to_local(position_on_grid)
 		area.connect("behavior_body_entered", painter._on_behavior_area_body_entered)
+		# area.add_child(collision_shape)
 		area.call_deferred("add_child", collision_shape)
-
+		# behaviors_node.add_child(area)
 		behaviors_node.call_deferred("add_child", area)
 
 
@@ -204,6 +217,8 @@ func unload(_body) -> void:
 	# Clear all tiles
 	tile_map.clear()
 	# Clear nodes
+	# clear_node(enemies_node)
+	# clear_node(behaviors_node)
 	call_deferred("clear_node", enemies_node)
 	call_deferred("clear_node", behaviors_node)
 	# Set is_loaded to false.

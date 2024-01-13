@@ -11,6 +11,9 @@ class_name Painter extends TileMap
 ## The player
 @onready var player : Player = $Player
 
+## Our background music player
+var background_music_player : AudioStreamPlayer = AudioStreamPlayer.new()
+
 ## Dataloader
 var data_loader : DataLoader = DataLoader.new()
 
@@ -22,6 +25,9 @@ func _ready():
 	data_loader.init(data_file_path, world_seed)
 	var t_set = load(data_loader.texture_image)
 	tile_set = t_set
+
+	# Add background music
+	add_child(background_music_player)
 
 	# Initialize chunks
 	for chunk in data_loader.chunks:
@@ -63,7 +69,10 @@ func _ready():
 	tile_to_spawn_on.y -= 1
 
 	player.position = player_chunk.tile_map.map_to_local(tile_to_spawn_on) + map_to_local(player_chunk.position_on_grid)
-	
+	# background_music_player.stream = load(data_loader.data['backgroundMusic'])
+	# background_music_player.play()
+	# background_music_player.volume_db = 2
+
 
 ## When a body enters a behavior it calls a "call_behavior" method on the body.
 ## This function is triggered when a body enters a behavior area.
