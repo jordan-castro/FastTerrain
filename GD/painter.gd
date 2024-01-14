@@ -41,7 +41,8 @@ func _ready():
 
 	# Load player chunk
 	var player_chunk = data_loader.chunks[(data_loader.random.randi() + 1) % data_loader.chunks.size()]
-	player_chunk.load(null)
+	player_chunk._bg_load()
+	# player_chunk.
 	print("Loaded terrain")
 
 	print("Loaded player chunk.")

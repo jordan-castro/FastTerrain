@@ -27,6 +27,12 @@ var load_body_area2d : Area2D = Area2D.new()
 ## our unloadbody arae
 var unload_body_area2d : Area2D = Area2D.new()
 
+## Our on screen tilemap
+var on_screen_tile_map : TileMap = TileMap.new()
+
+## Load thread
+var load_thread : Thread = Thread.new()
+
 var rect = null
 
 
@@ -48,7 +54,8 @@ func _init(position_on_grid_: Vector2i, width_: int, height_: int)->void:
 	# Add our nodes
 	add_child(behaviors_node)
 	add_child(enemies_node)
-	add_child(tile_map)
+	add_child(on_screen_tile_map)
+	# add_child(tile_map)
 
 	# -- Load and unload bodies --
 	# Layers (is not player)
@@ -91,10 +98,12 @@ func init(tile_set: TileSet, gb_position: Vector2, painter_: Painter):
 
 	# Set tilemap
 	tile_map.tile_set = tile_set
-	tile_map.name = "ChunkMap"
-	tile_map.global_position = gb_position
+	on_screen_tile_map.tile_set = tile_set
+	on_screen_tile_map.name = "ChunkMap"
+	on_screen_tile_map.global_position = gb_position
+	
 	# Set a name for our chunk!
-	name = "Chunk + " + str(position_on_grid) + " " + str(width) + "x" + str(height)
+	name = "Chunk + " + str(position_on_grid)
 
 
 ## Loads the chunk
@@ -103,29 +112,29 @@ func load(_body) -> void:
 	if is_loaded:
 		return
 
-	var should_wait = false
-	if _body == null:
-		should_wait = true
+	load_thread.start(_bg_load)
 
+
+func _bg_load():
 	load_terrain()
 	for b in painter.data_loader.behaviors:
 		load_behavior(b)
 	is_loaded = true
 	draw_terrain()
-	load_nodes()
 
-	# var t = Thread.new()
-	# t.start(
-	# 	func():
-	# 		load_terrain()
-	# 		for b in painter.data_loader.behaviors:
-	# 			load_behavior(b)
-	# 		is_loaded = true
-	# 		call_deferred("draw_terrain")
-	# 		call_deferred("load_nodes")
-	# )
-	# if should_wait:
-	# 	t.wait_to_finish()
+	call_deferred("_finish_load")
+	return true
+
+
+func _finish_load():
+	if not load_thread.is_alive():
+		is_loaded = false
+		return
+
+	var res = load_thread.wait_to_finish()
+	on_screen_tile_map.set("layer_0/tile_data", tile_map.get("layer_0/tile_data"))
+	# add_child(tile_map)
+	load_nodes()
 
 
 ## Returns an array of tiles in the chunk.
@@ -215,12 +224,13 @@ func unload(_body) -> void:
 	if not is_loaded:
 		return
 	# Clear all tiles
-	tile_map.clear()
+	remove_child(tile_map)
+	# tile_map.clear()
 	# Clear nodes
-	# clear_node(enemies_node)
-	# clear_node(behaviors_node)
-	call_deferred("clear_node", enemies_node)
-	call_deferred("clear_node", behaviors_node)
+	clear_node(enemies_node)
+	clear_node(behaviors_node)
+	# call_deferred("clear_node", enemies_node)
+	# call_deferred("clear_node", behaviors_node)
 	# Set is_loaded to false.
 	is_loaded = false
 

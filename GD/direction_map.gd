@@ -54,3 +54,7 @@ func keys():
 ## Returns the values
 func values():
 	return [self.N, self.E, self.S, self.W]
+
+
+func eq(other) -> bool:
+	return self.N == other.N and self.E == other.E and self.S == other.S and self.W == other.W

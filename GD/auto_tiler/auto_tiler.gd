@@ -7,6 +7,7 @@ class_name AutoTiler
 
 var rules: Array[AutoTilerRule] = []
 var random : RandomNumberGenerator = null
+var cached_results : Dictionary = {}
 
 
 func _init(rules_: Array[AutoTilerRule], random_ : RandomNumberGenerator) -> void:
@@ -26,6 +27,17 @@ func decide_tile(tile: Tile, neighbours: DirectionMap, gridSystem: GridSystem) -
 	var rule: AutoTilerRule = _get_rule_for_tile(tile)
 	if rule == null:
 		return tile.name
+
+	# Check if the result is cached
+	if cached_results.has(tile.name):
+		var cached_result = cached_results.get(tile.name)
+		print(cached_result["neighbours"].eq(neighbours))
+		if cached_result["neighbours"].eq(neighbours):
+			var result = cached_result.get("result")
+			if result.contains(","):
+				var results = result.split(",")
+				return results[(random.randi() + 1) % results.size()]
+			return result
 
 	var is_met : bool = true
 
@@ -48,6 +60,11 @@ func decide_tile(tile: Tile, neighbours: DirectionMap, gridSystem: GridSystem) -
 				break
 
 		if is_met:
+			# Cache it
+			# cached_results[tile.name] = {
+			# 	"neighbours": neighbours,
+			# 	"result": condition.result,
+			# }
 			if condition.result.contains(","):
 				var results = condition.result.split(",")
 				return results[(random.randi() + 1) % results.size()]
