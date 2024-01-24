@@ -2,7 +2,7 @@
 ## Each chunk has a position on the grid, a width, a height, and a loaded state.
 class_name Chunk extends Node2D
 
-## A boolean indicating whether the chunk is loaded or not.
+## A boolean indi>cating whether the chunk is loaded or not.
 var is_loaded: bool = false
 ## The position of the chunk on the grid.
 var position_on_grid : Vector2i = Vector2i.ZERO
@@ -22,16 +22,15 @@ var tile_map : TileMap = TileMap.new()
 var behaviors_node : Node = Node.new()
 ## Our Enemies
 var enemies_node : Node = Node.new()
-## Our loadbody area
-var load_body_area2d : Area2D = Area2D.new()
-## our unloadbody arae
-var unload_body_area2d : Area2D = Area2D.new()
 
 ## Our on screen tilemap
 var on_screen_tile_map : TileMap = TileMap.new()
 
 ## Load thread
 var load_thread : Thread = Thread.new()
+
+## Is our thread running?
+var thread_running : bool = false
 
 var rect = null
 
@@ -55,85 +54,63 @@ func _init(position_on_grid_: Vector2i, width_: int, height_: int)->void:
 	add_child(behaviors_node)
 	add_child(enemies_node)
 	add_child(on_screen_tile_map)
-	# add_child(tile_map)
-
-	# -- Load and unload bodies --
-	# Layers (is not player)
-	load_body_area2d.set_collision_layer_value(1, false)
-	unload_body_area2d.set_collision_layer_value(1, false)
-	# Layers (Can technically be considered behaviors?)
-	load_body_area2d.set_collision_layer_value(4, true)
-	unload_body_area2d.set_collision_layer_value(4, true)
-	# Masks (A special player mask)
-	load_body_area2d.set_collision_mask_value(6, true)
-	unload_body_area2d.set_collision_mask_value(6, true)
-	# Shape
-	call_deferred("try")
-	# try()
-	# Connects
-	load_body_area2d.connect("body_entered", self.load)
-	unload_body_area2d.connect("body_exited", self.unload)
-
-	add_child(load_body_area2d)
-	add_child(unload_body_area2d)
-
-
-func try():
-	var load_collision_shape = CollisionShape2D.new()
-	load_collision_shape.shape = RectangleShape2D.new()
-	load_collision_shape.shape.size = Vector2(width * 75, height * 75)
-	load_body_area2d.add_child(load_collision_shape)
-	var unload_collision_shape = CollisionShape2D.new()
-	unload_collision_shape.shape = RectangleShape2D.new()
-	unload_collision_shape.shape.size = Vector2(width * 100, height * 100)
-	unload_body_area2d.add_child(unload_collision_shape)
 
 
 func init(tile_set: TileSet, gb_position: Vector2, painter_: Painter):
 	painter = painter_
 
-	# Finish setting body areas (position)
-	load_body_area2d.global_position = gb_position
-	unload_body_area2d.global_position = gb_position
-
 	# Set tilemap
 	tile_map.tile_set = tile_set
 	on_screen_tile_map.tile_set = tile_set
 	on_screen_tile_map.name = "ChunkMap"
-	on_screen_tile_map.global_position = gb_position
+	# on_screen_tile_map.global_position = gb_position
 	
 	# Set a name for our chunk!
 	name = "Chunk + " + str(position_on_grid)
+	# Set the global position of the chunk.
+	global_position = gb_position
+
+
+## Loads chunk in the foreground
+## used by the main thread
+func _fg_load():
+	self.load(false)
 
 
 ## Loads the chunk
 ## _body is irrevalant, is only there to accept calls from AreaBody2D
-func load(_body) -> void:
-	if is_loaded:
-		return
+func load(deffered: bool = true) -> bool:
+	terrain.build(painter.data_loader, self)
 
-	load_thread.start(_bg_load)
+	for behavior in painter.data_loader.behaviors:
+		load_behavior(behavior)
 
-
-func _bg_load():
-	load_terrain()
-	for b in painter.data_loader.behaviors:
-		load_behavior(b)
 	is_loaded = true
 	draw_terrain()
-
-	call_deferred("_finish_load")
+	
+	if deffered:
+		call_deferred("_finish_load")
+	else:
+		on_screen_tile_map.set("layer_0/tile_data", tile_map.get("layer_0/tile_data"))
+		load_nodes()
 	return true
 
 
-func _finish_load():
-	if not load_thread.is_alive():
-		is_loaded = false
+## Loads the chunk in the b	ackground
+## Used by the load thread 
+func _bg_load():
+	if is_loaded:
 		return
+	if thread_running:
+		return
+	thread_running = true
+	load_thread.start(self.load)
 
-	var res = load_thread.wait_to_finish()
+
+func _finish_load():
+	var _res = load_thread.wait_to_finish()
+	thread_running = false
 	on_screen_tile_map.set("layer_0/tile_data", tile_map.get("layer_0/tile_data"))
-	# add_child(tile_map)
 	load_nodes()
 
 
@@ -141,10 +118,6 @@ func _finish_load():
 ## Each tile is represented as an array with two elements: the position of the tile on the grid and the tile itself.
 func get_tiles() -> Array[TileWithPosition]:
 	return terrain.grid_system.box_safe(Vector2i(0, 0), width, height)
-
-
-func load_terrain()->void:
-	terrain.build(painter.data_loader, self)
 
 
 ## Spawn a [Node] into the [Painter]
@@ -220,17 +193,14 @@ func load_nodes() -> void:
 		enemies_node.add_child(node)
 
 
-func unload(_body) -> void:
+func unload() -> void:
 	if not is_loaded:
 		return
 	# Clear all tiles
-	remove_child(tile_map)
-	# tile_map.clear()
+	on_screen_tile_map.clear()
 	# Clear nodes
 	clear_node(enemies_node)
 	clear_node(behaviors_node)
-	# call_deferred("clear_node", enemies_node)
-	# call_deferred("clear_node", behaviors_node)
 	# Set is_loaded to false.
 	is_loaded = false
 

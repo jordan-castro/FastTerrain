@@ -9,7 +9,7 @@ class_name Painter extends TileMap
 @export var world_seed : int = 01312002
 
 ## The player
-@onready var player : Player = $Player
+@onready var player : CharacterBody2D = $Player
 
 ## Our background music player
 var background_music_player : AudioStreamPlayer = AudioStreamPlayer.new()
@@ -32,8 +32,6 @@ func _ready():
 	# Initialize chunks
 	for chunk in data_loader.chunks:
 		chunk.init(t_set, map_to_local(chunk.position_on_grid), self)
-		# chunk.tile_set = t_set
-		# chunk.global_position = map_to_local(chunk.position_on_grid)
 		add_child(chunk)
 
 	print("Loaded data.")
@@ -41,7 +39,7 @@ func _ready():
 
 	# Load player chunk
 	var player_chunk = data_loader.chunks[(data_loader.random.randi() + 1) % data_loader.chunks.size()]
-	player_chunk._bg_load()
+	player_chunk._fg_load()
 	# player_chunk.
 	print("Loaded terrain")
 
@@ -111,7 +109,7 @@ func _set_cell(position_: Vector2i, tilename: String)->void:
 		tile
 	)
 	# Set chunk tile_map
-	chunk.tile_map.set_cell(
+	chunk.on_screen_tile_map.set_cell(
 		0,
 		tile_position_on_chunk,
 		0,
@@ -119,3 +117,19 @@ func _set_cell(position_: Vector2i, tilename: String)->void:
 		tile.alt,
 	)
 
+
+## Every frame
+func _process(_delta):
+	count += 1
+	# only do this every 15 frames
+	if count % 15 == 0:
+		# Get the player's position on the map
+		var ltm : Vector2i = local_to_map(player.position)
+		# convert it to a Vector2
+		var pos : Vector2  = Vector2(ltm.x, ltm.y)
+		# Loop through all the chunks, and unload the ones that are too far away. Load the ones that are close.
+		for chunk in data_loader.chunks:
+			if pos.distance_to(chunk.position_on_grid) > 50:
+				chunk.unload()
+			else:
+				chunk._bg_load()

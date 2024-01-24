@@ -9,15 +9,20 @@ public partial class Painter : TileMap
     public string dataFilePath = "";
     [Export]
     public int worldSeed = 0;
-    [Export]
     private CharacterBody2D player = null;
-    private GodotThread ChunkLoaderThread = new();
     public DataLoader DataLoader = null;
-    private Vector2I playerPositionForThread = Vector2I.Zero;
+    /// <summary>
+    /// Keeps a count of how many frames have passed.
+    /// </summary>
+    private int count = 0;
 
     public override void _Ready()
     {
         base._Ready();
+
+        // Get player
+        player = GetNode<CharacterBody2D>("Player");
+
         GD.Print("Painter Ready");
         // Load data
         DataLoader = new DataLoader(dataFilePath, worldSeed);
@@ -31,7 +36,7 @@ public partial class Painter : TileMap
         // Initialze chunks
         foreach (var chunk in DataLoader.Chunks)
         {
-            chunk.Initialize(tileSet, map_to_local(chunk.PositionOnGrid), enemyScript);
+            chunk.Initialize(tileSet, map_to_local(chunk.PositionOnGrid), this);
             AddChild(chunk);
         }
         GD.Print("Loaded chunks");
@@ -41,7 +46,7 @@ public partial class Painter : TileMap
         // Load player chunk
         Chunk playerChunk = (Chunk)DataLoader.Random.Choose(DataLoader.Chunks);
         GD.Print(playerChunk.Name);
-        playerChunk.Load(this);
+        playerChunk.ForeGroundLoad();
         // GET POSITION to spawn on
         List<Vector2I> spawnPoints = playerChunk.terrain.GridSystem.GetCellsByType(
             new string[] { "GrassTallMiddle", "GrassTallLeft", "GrassTallRight" },
@@ -58,9 +63,7 @@ public partial class Painter : TileMap
             spawnPoint = (Vector2I)DataLoader.Random.Choose(spawnPoints);
         }
         spawnPoint.Y -= 1;
-        player.GlobalPosition = playerChunk.tileMap.MapToLocal(spawnPoint) + map_to_local(playerChunk.PositionOnGrid);
-
-        ChunkLoaderThread.Start(Callable.From(LoadChunks));
+        player.GlobalPosition = playerChunk.OnScreenTileMap.MapToLocal(spawnPoint) + map_to_local(playerChunk.PositionOnGrid);
     }
     public void _on_behavior_area_body_entered(Node body, BehaviorArea behaviorArea)
     {
@@ -74,47 +77,24 @@ public partial class Painter : TileMap
     public override void _Process(double delta)
     {
         base._Process(delta);
-        if (player is null)
-        {
-            return;
-        }
+        // Increment count
+        count++;
 
-        if (player.IsQueuedForDeletion())
+        // If count is divisble by 15 then load a chunk
+        if (count % 15 == 0)
         {
-            player = null;
-            return;
-        }
-
-        var newPosition = local_to_map(player.GlobalPosition);
-        if (newPosition != playerPositionForThread)
-        {
-            playerPositionForThread = newPosition;
-        }
-    }
-
-    private void LoadChunks()
-    {
-        while (true)
-        {
-            Rect2 ppp = new(
-                playerPositionForThread.X - DataLoader.Chunks[0].Width,
-                playerPositionForThread.Y - DataLoader.Chunks[0].Height,
-                DataLoader.Chunks[0].Width * 2,
-                DataLoader.Chunks[0].Height * 2
-            );
-
-            foreach (var chunk in DataLoader.Chunks)
-            {
-                if (chunk.IsLoaded)
-                {
-                    continue;
+            // Get the players position on the map
+            Vector2I ltm = LocalToMap(player.Position);
+            // Convert to Vector2
+            Vector2 pos = new(ltm.X, ltm.Y);
+            // Check which chunks if any are in range
+            foreach (var chunk in DataLoader.Chunks) {
+                if (pos.DistanceTo(chunk.PositionOnGrid) > 50) {
+                    chunk.Unload();
+                } else {
+                    chunk.BackgroundLoad();
                 }
-
-                if (ppp.Intersects(chunk.Rect))
-                {
-                    chunk.Load(this);
-                }
-            }
+            }   
         }
     }
 
@@ -173,7 +153,7 @@ public partial class Painter : TileMap
         // Set
         chunk.terrain.GridSystem.SetCellSafe(tilePositionOnChunk, tile);
         // Update TileMap
-        chunk.tileMap.SetCell(
+        chunk.OnScreenTileMap.SetCell(
             0,
             tilePositionOnChunk,
             0,

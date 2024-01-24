@@ -2,7 +2,7 @@ using Godot;
 
 namespace FastTerrain;
 
-public partial class Tile : GodotObject
+public class Tile
 {
     private static readonly Tile _empty = new("Empty", new Vector2I(-1, -1));
 
