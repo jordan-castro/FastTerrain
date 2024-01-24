@@ -59,7 +59,7 @@ public partial class FTPainter : TileMap
 	/// <summary>
 	/// The max size of the threadMap. This is for performance reasons.
 	/// </summary>
-	private Vector2I threadMapMaxSize = new(100, 100);
+	private Vector2I threadMapMaxSize = new(0, 0);
 
 	/// <summary>
 	/// This converts into terrainsToUse. Please do a comma delimited list of terrain ids.\
@@ -143,6 +143,12 @@ public partial class FTPainter : TileMap
 			random.RandfRange(0, WorldSize.Y)
 		);
 		player.GlobalPosition = playerPos;
+
+		// Set the max size of the thread map.
+		threadMapMaxSize = new Vector2I(
+			WorldSize.X / ChunkSize,
+			WorldSize.Y / ChunkSize
+		);
 	}
 
 	/// <summary>
