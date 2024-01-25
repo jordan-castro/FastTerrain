@@ -1,30 +1,31 @@
-# FastTerrain
+# FastTerrain: An Advanced Terrain Generation Algorithm for Pixel Ai Dash
 
-FastTerrain is the algorithm behind Pixel Ai Dash's terrain generation. It is a fast, simple, and easy to use algorithm that generates terrain in a 2D array. It is written in C# and is compatible with Godot. The implementation is pretty simple, and can be implemented in any language and framework.
+FastTerrain represents the cutting-edge algorithm powering the terrain generation in Pixel Ai Dash. Developed using C# and fully compatible with the Godot engine, this algorithm is renowned for its speed, simplicity, and ease of use. The design of FastTerrain allows for seamless integration across various programming languages and frameworks.
 
-## How it works
-So how does FastTerrain work it's magic? Let's take a closer look at the algorithm.
+## Operational Mechanics of FastTerrain
+An in-depth exploration of FastTerrain's functionality reveals the intricacies of the algorithm:
 
 ### Step 1: Procedural Generation (FastNoiseLite)
-The first step in creating PAD's terrain is setting the seed and generating noise. To do this, we use [FastNoiseLite](url), a built in Godot module.
+The terrain creation process in Pixel Ai Dash begins with setting a seed and generating noise using [FastNoiseLite](url), an integral module within Godot.
 
 ### Step 2: Auto Tile
-Then after the noise is planted, we have a bunch of tiles that are basically 1-dimensional in being that it doesnt follow any rules. There are no boundries, and there is nothing to expect, rather just choosing a tile at random. So, in order to fix that we use Godots built in Auto Tile features. The original FastTerrain algorithm had a custom AutoTiler built in, but it was slow and inefficient.
+Post-noise generation, the terrain comprises tiles that lack definitive structure. To introduce coherence, Godot's Auto Tile features are employed, significantly enhancing the original FastTerrain algorithm that used a slower, less efficient custom AutoTiler.
 
-### Step 3: Add Objects
-After auto tiling, we have a blank world with noise that has edges and follows some rules which means you can expect what the world will look like. Which is important for the player to have a feeling that it is like a real world. But, nonetheless it is still pretty blank. So we add in Objects to the world. Objects are things like trees, grass, mushrooms, etc. They are placed in the world at random, but they are placed in a way that makes sense. For example, trees are placed on grass, coins are placed on empty space, hearts are placed above grass, etc. This is done using a custom algorithm built into FastTerrain, called FTObject.
+### Step 3: Object Integration
+With auto tiling complete, the terrain gains structure and predictability, essential for immersive player experience. However, the terrain remains relatively barren, necessitating the addition of Objects (e.g., trees, grass, mushrooms). Object placement follows logical patterns (trees on grass, coins in empty spaces) using FastTerrain's custom algorithm, FTObject.
 
-### Step 4: Add Nodes
-After objects are placed, we add any nodes that are important to the chunk. To add nodes, we use another custom class built into FastTerrain, called FTNode. Nodes are things like Enemies, SignPosts, etc. They have the same logic as a FTObject because FTNode inherits from FTObject. The only difference is that FTNode uses a different function to place the nodes in the world. While FTObject uses `build` FTNode uses `spawn` with different parameters. Looking closer at any class that inherits FTNode or FTObject you can see how they work. And `spawn` returns a List<Vector2I> which is a list of all the positions that the node was placed at. This is needed for our FTPainter object to add them to the scene using CallDeffered.
+### Step 4: Node Addition
+The integration of essential nodes follows object placement. Nodes like Enemies and SignPosts are added using FTNode, a custom class in FastTerrain, which inherits from FTObject. The distinction lies in the placement function (`spawn` with varied parameters), and `spawn` outputs a List<Vector2I>, indicating node positions for scene incorporation via CallDeffered.
 
-### Step 5: Chunking
-All of these steps are done within the FTPainter _Process function. There is a chunking system which loads and unloads chunks based on the `player`s position.
+### Step 5: Chunk Management
+All aforementioned steps occur within the FTPainter _Process function, utilizing a chunking system that dynamically loads and unloads chunks based on the player's location.
 
-## How to use
-First you need to instantiate a TileMap node in your editor. Then Attach either the FTPainter.cs or ft_painter.gd script. Add a player object and vioala. The rest will be done automatically.
+## Implementation Guidelines
+To utilize FastTerrain, instantiate a TileMap node in your editor and attach the FTPainter.cs or ft_painter.gd script. Adding a player object will trigger automatic terrain generation.
 
-## How to add custom objects
-To add custom objects, you need to create a JSON file like so: 
+### Custom Object Integration
+Incorporating custom objects involves creating a JSON file and adding a new object under `objects['chunks']`. The FTObject.cs (or .gd equivalent) requires updating in the FromJson function:
+
 ```json
 {
 	"objects": {
@@ -251,9 +252,7 @@ public class NameOfCustomObject : FTObject
 }
 ```
 
-!Note
-The same process applies to FTNode.cs `or .gd` equivalent.
-The only different is that FTNode looks like this:
+The process is similar for FTNode, with differences in the class structure:
 
 ```csharp
 using Godot;
@@ -279,8 +278,8 @@ public class NameOfCustomNode : FTNode
 }
 ```
 
-## How to add custom behaviors?
-Adding custom behaviors is pretty simple. You just need to create a new JSON object in the behaviors array. Like this:
+## Adding custom Behaviors
+To add new behaviors, create a JSON object in the behaviors array and implement the logic in your player class:
 
 ```json
 {
@@ -293,10 +292,8 @@ Adding custom behaviors is pretty simple. You just need to create a new JSON obj
 }
 ```
 
-Now in order for the behavior to work, you have to implement the logic in your player class. That is beyond the scope of FastTerrain and is up to you to implement.
-
 ## The Future of FastTerrain
-FastTerrain has no future plans. It is a simple algorithm that I wrote to use in the game Pixel Ai Dash. If you like it, feel free to use it in your own projects. If you have any questions, feel free to join our [Discord Server](url) and ask in the #fastterrain channel.
+FastTerrain is a robust, standalone algorithm created for Pixel Ai Dash. Users are encouraged to adopt it in their projects. For further inquiries or discussions, join our Discord Server and visit the #fastterrain channel.
 
-Thank you for reading this far. I hope you enjoy using FastTerrain as much as I enjoyed making it.
-And check out Pixel Ai Dash on our supported [platforms](link to platforms)!
+We appreciate your interest in FastTerrain and invite you to explore Pixel Ai Dash on our supported [platforms](link to platforms).
+
