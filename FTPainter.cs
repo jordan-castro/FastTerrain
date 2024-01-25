@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Threading;
+using FTObjects;
 using Godot;
+using Godot.Collections;
 using Newtonsoft.Json.Linq;
 
 namespace FastTerrain;
@@ -50,11 +53,11 @@ public partial class FTPainter : TileMap
 	/// Our Objects.
 	/// </summary>
 	private List<FTObject> objects = new();
-	
+
 	/// <summary>
-	/// Our behaviors.
+	/// Our EnemySpawners
 	/// </summary>
-	private List<FTBehavior> behaviors = new();
+	private List<EnemySpawner> enemySpawners = new();
 
 	/// <summary>
 	/// The max size of the threadMap. This is for performance reasons.
@@ -62,12 +65,17 @@ public partial class FTPainter : TileMap
 	private Vector2I threadMapMaxSize = new(0, 0);
 
 	/// <summary>
+	/// Current chunk player is in.
+	/// </summary>
+	private Vector2I chunkPlayerIsIn = new(0, 0);
+
+	/// <summary>
 	/// This converts into terrainsToUse. Please do a comma delimited list of terrain ids.\
 	/// All terrains are within the same terrainset.
 	/// The first terrain is used to paint the base (grass, dirt, snow, sand, etc.).
 	/// </summary>
 	[Export]
-	public Godot.Collections.Array<int> terrainsToUse = new();
+	public Array<int> terrainsToUse = new();
 
 	/// <summary>
 	/// The chunk size
@@ -115,12 +123,22 @@ public partial class FTPainter : TileMap
 		random.Seed = (ulong)WorldSeed;
 
 		// Set the behaviors and objects from JSON.
-        FileAccess fileAccess = FileAccess.Open(DataFilePath, FileAccess.ModeFlags.Read);
-		Godot.Collections.Dictionary data = (Godot.Collections.Dictionary)Json.ParseString(fileAccess.GetAsText());
+		FileAccess fileAccess = FileAccess.Open(DataFilePath, FileAccess.ModeFlags.Read);
+        Dictionary data = (Dictionary)Json.ParseString(fileAccess.GetAsText());
 		fileAccess.Close();
 
 		// Objects first
-		foreach (Godot.Collections.Dictionary ftObject in data["objects"].As<Godot.Collections.Dictionary>()["chunk"].As<Godot.Collections.Array>()) {
+		foreach (Dictionary ftObject in data["objects"].As<Dictionary>()["chunk"].As<Godot.Collections.Array>())
+		{
+			if ((string)ftObject["name"] == "EnemySpawner") {
+				enemySpawners.Add(
+					FTObject.FromJson(
+						ftObject
+					) as EnemySpawner
+				);
+				continue;
+			}
+			
 			objects.Add(
 				FTObject.FromJson(
 					ftObject
@@ -129,20 +147,18 @@ public partial class FTPainter : TileMap
 		}
 
 		// Behaviors
-		foreach (Godot.Collections.Dictionary behavior in data["behaviors"].As<Godot.Collections.Array>()) {
-			behaviors.Add(
-				FTBehavior.FromJson(
-					behavior
-				)
-			);
+		foreach (Dictionary behavior in data["behaviors"].As<Godot.Collections.Array>())
+		{
+			behavior["tile"] = Utils.StringToVector2I((string)behavior["tile"]);
+			player.Call("add_behavior", new Variant[] { behavior });
 		}
 
-		// TODO: spawn player in random location
-		var playerPos = new Vector2(
-			random.RandfRange(0, WorldSize.X),
-			random.RandfRange(0, WorldSize.Y)
+		// TODO: Make sure player always spawns on a valid tile.
+		var playerPos = new Vector2I(
+			random.RandiRange(0, WorldSize.X),
+			random.RandiRange(0, WorldSize.Y)
 		);
-		player.GlobalPosition = playerPos;
+		player.Position = MapToLocal(playerPos);
 
 		// Set the max size of the thread map.
 		threadMapMaxSize = new Vector2I(
@@ -151,10 +167,25 @@ public partial class FTPainter : TileMap
 		);
 	}
 
-	/// <summary>
-	/// Called every frame. 'delta' is the elapsed time since the previous frame.
-	/// </summary>
-	public override void _Process(double delta)
+    public override void _UnhandledInput(InputEvent @event)
+    {
+		base._UnhandledInput(@event);
+		// Mouse
+		if (Input.IsActionJustPressed("mouse_left")) {
+			// Find mouse position
+			var mousePos = GetLocalMousePosition();
+			var mousePosInMap = LocalToMap(mousePos);
+			// Get the tile atlas coords
+			var atlasCoords = GetCellAtlasCoords(0, mousePosInMap);
+
+			GD.Print("Atlas coords: " + atlasCoords, ":: Mouse pos: " + mousePosInMap);
+		}
+    }
+
+    /// <summary>
+    /// Called every frame. 'delta' is the elapsed time since the previous frame.
+    /// </summary>
+    public override void _Process(double delta)
 	{
 		base._Process(delta);
 
@@ -172,9 +203,9 @@ public partial class FTPainter : TileMap
 
 		// 1. Check player position.
 		Vector2I chunk = GetChunk(LocalToMap(player.Position));
-		// 2. load in chunk and define.
+		chunkPlayerIsIn = chunk;
 
-		// Generate the 4 surround chunks as well.
+		// Load chunks in a seperate thread.
 		loadChunksThread = new(() => LoadChunks(chunk));
 		loadChunksThread.Start();
 	}
@@ -185,12 +216,13 @@ public partial class FTPainter : TileMap
 	private void LoadChunks(Vector2I chunk)
 	{
 		bool update = false;
+	
 		// N, NE, E, SE, S, SW, W, NW
 		for (int x = -2; x < 2; x++)
 		{
 			for (int y = -2; y < 2; y++)
 			{
-				Vector2I newChunk = new Vector2I(chunk.X + x, chunk.Y + y);
+				Vector2I newChunk = new(chunk.X + x, chunk.Y + y);
 				// Check chunk has not been loaded.
 				if (loadedChunks.Contains(newChunk))
 				{
@@ -215,6 +247,9 @@ public partial class FTPainter : TileMap
 
 		if (update)
 		{
+			// Unload chunks
+			UnloadChunks(chunk);
+
 			// Update the main thread.
 			CallDeferred("UpdateMainThread");
 		}
@@ -227,9 +262,9 @@ public partial class FTPainter : TileMap
 	/// <param name="threadId">The id of the thread.</param>
 	private void GenerateChunk(Vector2I chunk)
 	{
-		// The tiles to be added to the thread map.
-		Godot.Collections.Array<Vector2I> tiles = new();
-		Godot.Collections.Array<Vector2I> emptyTiles = new();
+        // The tiles to be added to the thread map.
+        Array<Vector2I> tiles = new();
+        Array<Vector2I> emptyTiles = new();
 
 		// Update the chunk to be the actual position.
 		chunk.X *= ChunkSize;
@@ -270,16 +305,14 @@ public partial class FTPainter : TileMap
 		tiles.AddRange(emptyTiles);
 
 		// Apply objects
-		foreach (var obj in objects) {
-			if (obj == null) {
+		foreach (var obj in objects)
+		{
+			if (obj == null)
+			{
 				continue;
 			}
 			obj.Build(tiles, threadMap, chunk, WorldSize, ChunkSize, random);
 		}
-		// // Behaviors go after objects
-		// foreach (var behavior in behaviors) {
-		// 	behavior.Apply(threadMap, tiles);
-		// }
 	}
 
 	/// <summary>
@@ -290,6 +323,35 @@ public partial class FTPainter : TileMap
 		loadChunksThread = null;
 		// Set our main thread man to the threadMap.
 		Set("layer_0/tile_data", threadMap.Get("layer_0/tile_data"));
+	}
+
+	/// <summary>
+	/// Unload chunks.
+	/// </summary>
+	private void UnloadChunks(Vector2I chunk)
+	{
+		List<Vector2I> chunksToRemove = new();
+		// Loop through all the loaded chunks.
+		foreach (var loadedChunk in loadedChunks)
+		{
+			// Check if the chunk is within the bounds of the player.
+			if (loadedChunk.X < chunk.X - 2 || loadedChunk.X > chunk.X + 2 || loadedChunk.Y < chunk.Y - 2 || loadedChunk.Y > chunk.Y + 2)
+			{
+				// Remove the chunk from the loaded chunks.
+				chunksToRemove.Add(loadedChunk);
+				// Update the threadMap.
+				for (int x = loadedChunk.X * ChunkSize; x < loadedChunk.X * ChunkSize + ChunkSize; x++)
+				{
+					for (int y = loadedChunk.Y * ChunkSize; y < loadedChunk.Y * ChunkSize + ChunkSize; y++)
+					{
+						// Erase the cell
+						threadMap.EraseCell(0, new Vector2I(x, y));
+					}
+				}
+			}
+		}
+
+		loadedChunks.RemoveAll(chunk => chunksToRemove.Contains(chunk));
 	}
 
 	/// <summary>

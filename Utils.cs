@@ -21,4 +21,9 @@ public class Utils {
 		string[] values = newValue.Split(',');
 		return new Vector2I(Convert.ToInt32(values[0]), Convert.ToInt32(values[1]));
 	}
+
+	/// <summary>
+	/// Empty tile copy.
+	/// </summary>
+	public static Vector2I EmptyTile = new (-1, -1);
 }
